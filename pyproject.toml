@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "kino"
+version = "0.1.0"
+description = "Honza Javorek's personal cinema scraper"
+authors = ["Honza Javorek <mail@honzajavorek.cz>"]
+readme = "README.md"
+
+[tool.poetry.scripts]
+kino = "kino.__main__:main"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+crawlee = {extras = ["beautifulsoup"], version = "^0.3.5"}
+click = "^8.1.7"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
