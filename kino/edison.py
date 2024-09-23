@@ -1,5 +1,4 @@
 from collections import defaultdict
-import json
 from pathlib import Path
 import re
 import asyncio
@@ -14,6 +13,8 @@ from crawlee.beautifulsoup_crawler import (
 )
 from crawlee.router import Router
 from pydantic import RootModel
+
+from kino.format_json import format_json
 
 
 router = Router[BeautifulSoupCrawlingContext]()
@@ -30,10 +31,7 @@ TimeTable = RootModel[dict[str, set[datetime]]]
 )
 def edison(path: Path):
     asyncio.run(scrape(path))
-
-    # see https://github.com/apify/crawlee-python/issues/526
-    data = json.loads(path.read_text())
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    format_json(path)
 
 
 async def scrape(path: Path):
