@@ -91,6 +91,7 @@ async def detault_handler(context: BeautifulSoupCrawlingContext):
                 method="POST",
                 data={"pr": projection_id, "_locale": "cs"},
                 user_data=dict(timetable=timetable_json),
+                use_extended_unique_key=True,
                 label="detail",
             )
             for projection_id in timetable.keys()
