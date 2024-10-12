@@ -62,6 +62,25 @@ doc = ["doc8", "sphinx (>=7.0.0)", "sphinx-autobuild", "sphinx-autodoc-typehints
 test = ["dateparser (==1.*)", "pre-commit", "pytest", "pytest-cov", "pytest-mock", "pytz (==2021.1)", "simplejson (==3.*)"]
 
 [[package]]
+name = "attrs"
+version = "24.2.0"
+description = "Classes Without Boilerplate"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "attrs-24.2.0-py3-none-any.whl", hash = "sha256:81921eb96de3191c8258c199618104dd27ac608d9366f5e35d011eae1867ede2"},
+    {file = "attrs-24.2.0.tar.gz", hash = "sha256:5cfb1b9148b5b086569baec03f20d7b6bf3bcacc9a42bebf87ffaaca362f6346"},
+]
+
+[package.extras]
+benchmark = ["cloudpickle", "hypothesis", "mypy (>=1.11.1)", "pympler", "pytest (>=4.3.0)", "pytest-codspeed", "pytest-mypy-plugins", "pytest-xdist[psutil]"]
+cov = ["cloudpickle", "coverage[toml] (>=5.3)", "hypothesis", "mypy (>=1.11.1)", "pympler", "pytest (>=4.3.0)", "pytest-mypy-plugins", "pytest-xdist[psutil]"]
+dev = ["cloudpickle", "hypothesis", "mypy (>=1.11.1)", "pre-commit", "pympler", "pytest (>=4.3.0)", "pytest-mypy-plugins", "pytest-xdist[psutil]"]
+docs = ["cogapp", "furo", "myst-parser", "sphinx", "sphinx-notfound-page", "sphinxcontrib-towncrier", "towncrier (<24.7)"]
+tests = ["cloudpickle", "hypothesis", "mypy (>=1.11.1)", "pympler", "pytest (>=4.3.0)", "pytest-mypy-plugins", "pytest-xdist[psutil]"]
+tests-mypy = ["mypy (>=1.11.1)", "pytest-mypy-plugins"]
+
+[[package]]
 name = "beautifulsoup4"
 version = "4.12.3"
 description = "Screen-scraping library"
@@ -663,6 +682,24 @@ cli = ["click (==8.*)", "pygments (==2.*)", "rich (>=10,<14)"]
 http2 = ["h2 (>=3,<5)"]
 socks = ["socksio (==1.*)"]
 zstd = ["zstandard (>=0.18.0)"]
+
+[[package]]
+name = "ics"
+version = "0.7.2"
+description = "Python icalendar (rfc5545) parser"
+optional = false
+python-versions = "*"
+files = [
+    {file = "ics-0.7.2-py2.py3-none-any.whl", hash = "sha256:5fcf4d29ec6e7dfcb84120abd617bbba632eb77b097722b7df70e48dbcf26103"},
+    {file = "ics-0.7.2.tar.gz", hash = "sha256:6743539bca10391635249b87d74fcd1094af20b82098bebf7c7521df91209f05"},
+]
+
+[package.dependencies]
+arrow = ">=0.11"
+attrs = ">=19.1.0"
+python-dateutil = "*"
+six = ">1.5"
+tatsu = ">4.2"
 
 [[package]]
 name = "idna"
@@ -1464,6 +1501,21 @@ files = [
 ]
 
 [[package]]
+name = "tatsu"
+version = "5.12.1"
+description = "TatSu takes a grammar in a variation of EBNF as input, and outputs a memoizing PEG/Packrat parser in Python."
+optional = false
+python-versions = ">=3.11"
+files = [
+    {file = "TatSu-5.12.1-py3-none-any.whl", hash = "sha256:97073bcf496a54adc6c87043cfd70c177a5f5f95c09c3ba0cfea43286ea728e1"},
+    {file = "tatsu-5.12.1.tar.gz", hash = "sha256:57a6da442f71f07cac4fc99c5f997e2559e340b9e5177449dc35b751e18e3405"},
+]
+
+[package.extras]
+colorization = ["colorama"]
+parproc = ["rich"]
+
+[[package]]
 name = "text-unidecode"
 version = "1.3"
 description = "The most basic Text::Unidecode port"
@@ -1587,4 +1639,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "e46dfc36b6e5a8d740501e742c828427e092b0e7a4a5230464cf0f4fdb1cbcbe"
+content-hash = "3e1a650f8c54b0537afc691391de0a4a2e189e341d4a30240d13f3ed51e1c8a9"

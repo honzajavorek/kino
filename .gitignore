@@ -163,3 +163,7 @@ cython_debug/
 
 # Crawlee
 storage
+
+# exports
+*.ics
+site/
