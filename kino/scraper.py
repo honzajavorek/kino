@@ -1,12 +1,14 @@
 import asyncio
+import re
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-import re
 from typing import Any, TypedDict
 from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
+
 import click
+import ics
 from crawlee import Request
 from crawlee.beautifulsoup_crawler import (
     BeautifulSoupCrawler,
@@ -14,7 +16,6 @@ from crawlee.beautifulsoup_crawler import (
 )
 from crawlee.router import Router
 from pydantic import BaseModel, RootModel
-import ics
 
 
 CINEMAS = {

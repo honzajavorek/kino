@@ -3,6 +3,7 @@ name = "kino"
 version = "0.1.0"
 description = "Honza Javorek's personal cinema scraper"
 authors = ["Honza Javorek <mail@honzajavorek.cz>"]
+license = "AGPL-3.0-only"
 readme = "README.md"
 
 [tool.poetry.scripts]
@@ -14,6 +15,26 @@ crawlee = {extras = ["beautifulsoup"], version = "^0.3.5"}
 click = "^8.1.7"
 pydantic = "^2.9.2"
 ics = "^0.7.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+pytest-ruff = "^0.4.1"
+ruff = "^0.6.0"
+
+[tool.pytest.ini_options]
+python_files = "test_*.py"
+testpaths = "tests"
+addopts = "--import-mode=importlib --ff --ruff --ruff-format"
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+lines-after-imports = 2
 
 [build-system]
 requires = ["poetry-core"]

@@ -1,5 +1,6 @@
 import asyncio
 from pathlib import Path
+
 import click
 
 from kino.scraper import scrape
