@@ -26,7 +26,7 @@ CINEMAS = {
 
 DATE_RE = re.compile(r"\d{1,2}.\d{1,2}.\d{4}")
 
-LENGTH_RE = re.compile(r"(\d+) min")
+DURATION_RE = re.compile(r"(\d+) min")
 
 
 class UnexpectedStructureError(Exception):
@@ -137,7 +137,7 @@ async def film_handler(context: BeautifulSoupCrawlingContext):
     screenings = timetable[context.request.url]
 
     if info := context.soup.select_one(".film-info-content .origin"):
-        length = parse_length(info.text)
+        duration = parse_duration(info.text)
     else:
         raise UnexpectedStructureError("No info found")
 
@@ -150,16 +150,16 @@ async def film_handler(context: BeautifulSoupCrawlingContext):
         await context.push_data(
             {
                 "film_url": context.request.url,
-                "ends_at": screening["starts_at"] + timedelta(minutes=length),
+                "ends_at": screening["starts_at"] + timedelta(minutes=duration),
                 "rating": rating_ptc,
                 **screening,
             }
         )
 
 
-def parse_length(text: str) -> int:
-    lengths = [int(length.group(1)) for length in LENGTH_RE.finditer(text)]
-    return sum(lengths) // len(lengths)
+def parse_duration(text: str) -> int:
+    durations = [int(duration.group(1)) for duration in DURATION_RE.finditer(text)]
+    return sum(durations) // len(durations)
 
 
 def parse_rating_ptc(text: str) -> int | None:
