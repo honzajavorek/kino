@@ -1,4 +1,3 @@
-import asyncio
 import re
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -7,7 +6,6 @@ from typing import Any, TypedDict
 from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
 
-import click
 import ics
 from crawlee import Request
 from crawlee.beautifulsoup_crawler import (
@@ -48,32 +46,8 @@ class Screening(BaseModel):
     ends_at: datetime
     rating: int | None
 
-    def to_event(self) -> ics.Event:
-        return ics.Event(
-            name=f"{self.title} ({self.rating} %)" if self.rating else self.title,
-            begin=self.starts_at,
-            end=self.ends_at,
-            location=self.cinema,
-            url=self.film_url,
-            description=self.film_url,
-        )
-
 
 router = Router[BeautifulSoupCrawlingContext]()
-
-
-@click.command()
-@click.option(
-    "-o",
-    "--output",
-    "output_file",
-    default="kino.ics",
-    help="Output file",
-    type=click.Path(path_type=Path),
-)
-def main(output_file: Path):
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    asyncio.run(scrape(output_file))
 
 
 async def scrape(output_file: Path):
@@ -83,7 +57,7 @@ async def scrape(output_file: Path):
 
     calendar = ics.Calendar()
     async for item in dataset.iterate_items():
-        calendar.events.add(Screening(**item).to_event())
+        calendar.events.add(Screening(**item).model_dump_ics())
 
     crawler.log.info(f"Saving {len(calendar.events)} events")
     with output_file.open("w") as f:
@@ -156,6 +130,31 @@ async def film_handler(context: BeautifulSoupCrawlingContext):
                 **timetable_screening,
             }
         )
+
+
+def to_ics_event(screening: Screening) -> ics.Event:
+    return ics.Event(
+        name=(
+            f"{rating_to_emoji(screening.rating)} {screening.title}"
+            if screening.rating
+            else screening.title
+        ),
+        begin=screening.starts_at,
+        end=screening.ends_at,
+        location=screening.cinema,
+        url=screening.film_url,
+        description=screening.film_url,
+    )
+
+
+def rating_to_emoji(rating: int) -> str:
+    if rating < 50:
+        return "⚫️"
+    if rating < 70:
+        return "🔵"
+    if rating < 90:
+        return "🔴"
+    return "🟡"
 
 
 def to_user_data(timetable: TimeTableDict) -> dict[str, str]:
