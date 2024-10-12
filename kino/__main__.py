@@ -17,7 +17,9 @@ from kino.scraper import scrape
 )
 def main(output_file: Path):
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    asyncio.run(scrape(output_file))
+    calendar = asyncio.run(scrape())
+    with output_file.open("w") as f:
+        f.writelines(calendar.serialize_iter())
 
 
 main()

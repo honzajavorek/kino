@@ -1,20 +1,22 @@
 import re
 from collections import defaultdict
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any, TypedDict
+from datetime import date, datetime, timedelta
+from typing import Any, Iterable, TypedDict
 from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
 
-import ics
+from bs4 import Tag
 from crawlee import Request
 from crawlee.beautifulsoup_crawler import (
     BeautifulSoupCrawler,
     BeautifulSoupCrawlingContext,
 )
 from crawlee.router import Router
+from ics import Calendar, Event
 from pydantic import BaseModel, RootModel
 
+
+CSFD_URL = "https://www.csfd.cz/kino/1-praha/?period=week"
 
 CINEMAS = {
     "Praha - Kino Aero": "Aero",
@@ -27,6 +29,10 @@ DATE_RE = re.compile(r"\d{1,2}.\d{1,2}.\d{4}")
 LENGTH_RE = re.compile(r"(\d+) min")
 
 
+class UnexpectedStructureError(Exception):
+    pass
+
+
 class TimeTableScreening(TypedDict):
     cinema: str
     title: str
@@ -34,6 +40,7 @@ class TimeTableScreening(TypedDict):
 
 
 TimeTableDict = dict[str, list[TimeTableScreening]]
+
 
 TimeTable = RootModel[TimeTableDict]
 
@@ -50,18 +57,13 @@ class Screening(BaseModel):
 router = Router[BeautifulSoupCrawlingContext]()
 
 
-async def scrape(output_file: Path):
+async def scrape() -> Calendar:
     crawler = BeautifulSoupCrawler(request_handler=router)
-    await crawler.run(["https://www.csfd.cz/kino/1-praha/?period=week"])
+    await crawler.run([CSFD_URL])
     dataset = await crawler.get_dataset()
-
-    calendar = ics.Calendar()
-    async for item in dataset.iterate_items():
-        calendar.events.add(Screening(**item).model_dump_ics())
-
-    crawler.log.info(f"Saving {len(calendar.events)} events")
-    with output_file.open("w") as f:
-        f.writelines(calendar.serialize_iter())
+    return create_calendar(
+        [Screening(**item) async for item in dataset.iterate_items()]
+    )
 
 
 @router.default_handler
@@ -69,32 +71,38 @@ async def detault_handler(context: BeautifulSoupCrawlingContext):
     base_url = context.request.url
     timetable = defaultdict(list)
     for cinema in context.soup.select("#cinemas .box"):
-        cinema_name = cinema.select_one(".box-header h2").text.strip()
+        if heading := cinema.select_one(".box-header h2"):
+            cinema_name = heading.text.strip()
+        else:
+            raise UnexpectedStructureError("No heading found")
         if cinema_name := CINEMAS.get(cinema_name):
             context.log.info(f"Cinema {cinema_name}")
             starts_on = None
             for div in cinema.select(".box-sub-header, .box-content-table-cinema"):
                 if "box-sub-header" in div["class"]:
-                    date_text = DATE_RE.search(div.text.strip()).group()
-                    starts_on = datetime.strptime(date_text, "%d.%m.%Y").date()
+                    starts_on = parse_date(div.text)
                     context.log.info(f"Day {starts_on}")
-                else:
+                elif starts_on:
                     for film in div.select("tr"):
-                        link = film.select_one(".film-title-name")
-                        title = link.text.strip()
-                        time_text = film.select_one(".td-time").text.strip()
-                        starts_at = datetime.combine(
-                            starts_on,
-                            datetime.strptime(time_text, "%H:%M").time(),
-                            tzinfo=ZoneInfo("Europe/Prague"),
-                        )
-                        film_url = urljoin(base_url, link["href"])
+                        if link := film.select_one(".film-title-name"):
+                            title, film_url = parse_link(base_url, link)
+                        else:
+                            raise UnexpectedStructureError("No link found")
+                        if time := film.select_one(".td-time"):
+                            time_text = time.text.strip()
+                            starts_at = parse_time(starts_on, time_text)
+                        else:
+                            raise UnexpectedStructureError("No time found")
                         context.log.info(f"Screening {starts_at} {film_url}")
                         timetable[film_url].append(
-                            TimeTableScreening(
-                                cinema=cinema_name, starts_at=starts_at, title=title
-                            )
+                            {
+                                "cinema": cinema_name,
+                                "title": title,
+                                "starts_at": starts_at,
+                            }
                         )
+                else:
+                    raise UnexpectedStructureError("No day set")
     await context.add_requests(
         [
             Request.from_url(film_url, user_data=to_user_data(timetable), label="film")
@@ -103,37 +111,72 @@ async def detault_handler(context: BeautifulSoupCrawlingContext):
     )
 
 
+def parse_link(base_url: str, tag: Tag) -> tuple[str, str]:
+    return tag.text.strip(), urljoin(base_url, str(tag["href"]))
+
+
+def parse_date(text: str) -> date:
+    if match := DATE_RE.search(text.strip()):
+        date_text = match.group()
+        return datetime.strptime(date_text, "%d.%m.%Y").date()
+    raise ValueError(f"No date: {text!r}")
+
+
+def parse_time(starts_on: date, text: str) -> datetime:
+    return datetime.combine(
+        starts_on,
+        datetime.strptime(text.strip(), "%H:%M").time(),
+        tzinfo=ZoneInfo("Europe/Prague"),
+    )
+
+
 @router.handler("film")
 async def film_handler(context: BeautifulSoupCrawlingContext):
     context.log.info(f"Film {context.request.url}")
-    info = context.soup.select_one(".film-info-content .origin")
-    lengths = [int(length.group(1)) for length in LENGTH_RE.finditer(info.text)]
-    avg_length = sum(lengths) // len(lengths)
-
-    if (
-        rating := context.soup.select_one(".film-rating-average")
-        .text.strip()
-        .strip("?% ")
-    ):
-        rating = int(rating)
-    else:
-        rating = None
-
     timetable = from_user_data(context.request.user_data)
-    for timetable_screening in timetable[context.request.url]:
-        ends_at = timetable_screening["starts_at"] + timedelta(minutes=avg_length)
+    screenings = timetable[context.request.url]
+
+    if info := context.soup.select_one(".film-info-content .origin"):
+        length = parse_length(info.text)
+    else:
+        raise UnexpectedStructureError("No info found")
+
+    if rating := context.soup.select_one(".film-rating-average"):
+        rating_ptc = parse_rating_ptc(rating.text)
+    else:
+        rating_ptc = None
+
+    for screening in screenings:
         await context.push_data(
             {
                 "film_url": context.request.url,
-                "ends_at": ends_at,
-                "rating": rating,
-                **timetable_screening,
+                "ends_at": screening["starts_at"] + timedelta(minutes=length),
+                "rating": rating_ptc,
+                **screening,
             }
         )
 
 
-def to_ics_event(screening: Screening) -> ics.Event:
-    return ics.Event(
+def parse_length(text: str) -> int:
+    lengths = [int(length.group(1)) for length in LENGTH_RE.finditer(text)]
+    return sum(lengths) // len(lengths)
+
+
+def parse_rating_ptc(text: str) -> int | None:
+    if rating_ptc := text.strip().strip("?% "):
+        return int(rating_ptc)
+    return None
+
+
+def create_calendar(screenings: Iterable[Screening]) -> Calendar:
+    calendar = Calendar()
+    for screening in screenings:
+        calendar.events.add(create_event(screening))
+    return calendar
+
+
+def create_event(screening: Screening) -> Event:
+    return Event(
         name=(
             f"{rating_to_emoji(screening.rating)} {screening.title}"
             if screening.rating
