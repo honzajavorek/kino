@@ -38,6 +38,12 @@ jobs:
       - name: Install dependencies
         run: poetry install
 
+      - name: Tests
+        run: poetry run pytest
+
+      - name: Code
+        run: poetry run ruff check
+
       - name: Scrape
         run: poetry run kino -o site/kino.ics
 
