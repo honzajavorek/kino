@@ -54,6 +54,7 @@ class Screening(BaseModel):
             end=self.ends_at,
             location=self.cinema,
             url=self.film_url,
+            description=self.film_url,
         )
 
 
