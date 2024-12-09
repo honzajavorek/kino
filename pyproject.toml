@@ -11,15 +11,15 @@ kino = "kino.__main__:main"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-crawlee = {extras = ["beautifulsoup"], version = "^0.4.4"}
+crawlee = {extras = ["beautifulsoup"], version = "^0.4.5"}
 click = "^8.1.7"
-pydantic = "^2.9.2"
+pydantic = "^2.10.3"
 ics = "^0.7.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
 pytest-ruff = "^0.4.1"
-ruff = "^0.8.1"
+ruff = "^0.8.2"
 
 [tool.pytest.ini_options]
 python_files = "test_*.py"
