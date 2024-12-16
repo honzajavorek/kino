@@ -19,7 +19,7 @@ ics = "^0.7.2"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
 pytest-ruff = "^0.4.1"
-ruff = "^0.8.2"
+ruff = "^0.8.3"
 
 [tool.pytest.ini_options]
 python_files = "test_*.py"
