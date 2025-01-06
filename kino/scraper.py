@@ -7,10 +7,7 @@ from zoneinfo import ZoneInfo
 
 from bs4 import Tag
 from crawlee import Request
-from crawlee.beautifulsoup_crawler import (
-    BeautifulSoupCrawler,
-    BeautifulSoupCrawlingContext,
-)
+from crawlee.crawlers import BeautifulSoupCrawler, BeautifulSoupCrawlingContext
 from crawlee.router import Router
 from ics import Calendar, Event
 from pydantic import BaseModel, RootModel
