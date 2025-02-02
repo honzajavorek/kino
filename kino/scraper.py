@@ -53,6 +53,7 @@ class Screening(BaseModel):
     title: str
     film_url: str
     year: int
+    country: str
     starts_at: datetime
     ends_at: datetime
     rating: int | None
@@ -61,12 +62,12 @@ class Screening(BaseModel):
 router = Router[BeautifulSoupCrawlingContext]()
 
 
-async def scrape() -> Calendar:
+async def scrape(flags: dict[str, str]) -> Calendar:
     crawler = BeautifulSoupCrawler(request_handler=router)
     await crawler.run([CSFD_URL])
     dataset = await crawler.get_dataset()
     return create_calendar(
-        [Screening(**item) async for item in dataset.iterate_items()]
+        [Screening(**item) async for item in dataset.iterate_items()], flags
     )
 
 
@@ -142,6 +143,7 @@ async def film_handler(context: BeautifulSoupCrawlingContext):
 
     if origin := context.soup.select_one(".film-info-content .origin"):
         year = parse_year(origin.text)
+        country = parse_country(origin.text)
     else:
         raise UnexpectedStructureError("No origin found")
 
@@ -162,6 +164,7 @@ async def film_handler(context: BeautifulSoupCrawlingContext):
                 "ends_at": screening["starts_at"] + timedelta(minutes=duration),
                 "rating": rating_ptc,
                 "year": year,
+                "country": country,
                 **screening,
             }
         )
@@ -184,21 +187,28 @@ def parse_year(text: str) -> int:
     raise ValueError(f"No year: {text!r}")
 
 
-def create_calendar(screenings: Iterable[Screening]) -> Calendar:
+def parse_country(text: str) -> str:
+    try:
+        return re.split(r"[/,]", text)[0].strip()
+    except IndexError:
+        raise ValueError(f"No country: {text!r}")
+
+
+def create_calendar(screenings: Iterable[Screening], flags: dict[str, str]) -> Calendar:
     calendar = Calendar()
     for screening in screenings:
-        calendar.events.add(create_event(screening))
+        calendar.events.add(create_event(screening, flags))
     return calendar
 
 
-def create_event(screening: Screening) -> Event:
+def create_event(screening: Screening, flags: dict[str, str]) -> Event:
     name = (
         f"{rating_to_emoji(screening.rating)} {screening.title}"
         if screening.rating
         else screening.title
     )
     return Event(
-        name=f"{name} ({screening.year})",
+        name=f"{name} ({flags[screening.country]} {screening.year})",
         begin=screening.starts_at,
         end=screening.ends_at,
         location=screening.cinema,

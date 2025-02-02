@@ -3,6 +3,7 @@ from pathlib import Path
 
 import click
 
+from kino.flags import fetch_flags
 from kino.scraper import scrape
 
 
@@ -17,7 +18,7 @@ from kino.scraper import scrape
 )
 def main(output_file: Path):
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    calendar = asyncio.run(scrape())
+    calendar = asyncio.run(scrape(fetch_flags()))
     with output_file.open("w") as f:
         f.writelines(calendar.serialize_iter())
 
