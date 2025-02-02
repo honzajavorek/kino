@@ -16,8 +16,8 @@ from pydantic import BaseModel, RootModel
 CSFD_URL = "https://www.csfd.cz/kino/1-praha/?period=week"
 
 CINEMAS = {
-    "Praha - Cinema City Flora": "Flora",
-    "Praha - Cinema City Slovanský dům": "Slovaňák",
+    "Praha - Cinema City Flora": "Flora 💸",
+    "Praha - Cinema City Slovanský dům": "Slovaňák 💸",
     "Praha - Edison Filmhub": "Edison",
     "Praha - Kino Aero": "Aero",
     "Praha - Kino Atlas": "Atlas",
