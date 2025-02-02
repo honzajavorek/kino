@@ -46,6 +46,7 @@ class Screening(BaseModel):
     cinema: str
     title: str
     film_url: str
+    year: int
     starts_at: datetime
     ends_at: datetime
     rating: int | None
@@ -133,6 +134,11 @@ async def film_handler(context: BeautifulSoupCrawlingContext):
     timetable = from_user_data(context.request.user_data)
     screenings = timetable[context.request.url]
 
+    if origin := context.soup.select_one(".film-info-content .origin"):
+        year = parse_year(origin.text)
+    else:
+        raise UnexpectedStructureError("No origin found")
+
     if info := context.soup.select_one(".film-info-content .origin"):
         duration = parse_duration(info.text)
     else:
@@ -149,6 +155,7 @@ async def film_handler(context: BeautifulSoupCrawlingContext):
                 "film_url": context.request.url,
                 "ends_at": screening["starts_at"] + timedelta(minutes=duration),
                 "rating": rating_ptc,
+                "year": year,
                 **screening,
             }
         )
@@ -165,6 +172,12 @@ def parse_rating_ptc(text: str) -> int | None:
     return None
 
 
+def parse_year(text: str) -> int:
+    if match := re.search(r"(19|20)\d{2}", text):
+        return int(match.group())
+    raise ValueError(f"No year: {text!r}")
+
+
 def create_calendar(screenings: Iterable[Screening]) -> Calendar:
     calendar = Calendar()
     for screening in screenings:
@@ -173,12 +186,13 @@ def create_calendar(screenings: Iterable[Screening]) -> Calendar:
 
 
 def create_event(screening: Screening) -> Event:
+    name = (
+        f"{rating_to_emoji(screening.rating)} {screening.title}"
+        if screening.rating
+        else screening.title
+    )
     return Event(
-        name=(
-            f"{rating_to_emoji(screening.rating)} {screening.title}"
-            if screening.rating
-            else screening.title
-        ),
+        name=f"{name} ({screening.year})",
         begin=screening.starts_at,
         end=screening.ends_at,
         location=screening.cinema,
@@ -188,7 +202,7 @@ def create_event(screening: Screening) -> Event:
 
 
 def rating_to_emoji(rating: int) -> str:
-    if rating < 50:
+    if rating < 30:
         return "⚫️"
     if rating < 70:
         return "🔵"
