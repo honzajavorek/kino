@@ -1,6 +1,6 @@
 import pytest
 
-from kino.scraper import rating_to_emoji
+from kino.icalendar import rating_to_emoji
 
 
 @pytest.mark.parametrize(

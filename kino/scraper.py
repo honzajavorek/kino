@@ -1,7 +1,7 @@
 import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
-from typing import Any, Iterable, TypedDict
+from typing import Any, TypedDict
 from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
 
@@ -9,22 +9,23 @@ from bs4 import Tag
 from crawlee import Request
 from crawlee.crawlers import BeautifulSoupCrawler, BeautifulSoupCrawlingContext
 from crawlee.router import Router
-from ics import Calendar, Event
-from pydantic import BaseModel, RootModel
+from pydantic import RootModel
+
+from kino.models import Cinema, Screening
 
 
 CSFD_URL = "https://www.csfd.cz/kino/1-praha/?period=week"
 
 CINEMAS = {
-    "Praha - Cinema City Flora": "Flora 💸",
-    "Praha - Cinema City Slovanský dům": "Slovaňák 💸",
-    "Praha - Edison Filmhub": "Edison",
-    "Praha - Kino Aero": "Aero",
-    "Praha - Kino Atlas": "Atlas",
-    "Praha - Kino Lucerna": "Lucerna",
-    "Praha - Kino Pilotů": "Piloti",
-    "Praha - Kino Světozor": "Světozor",
-    "Praha - Přítomnost Boutique Cinema": "Přítomnost",
+    "Praha - Cinema City Flora": Cinema.FLORA,
+    "Praha - Cinema City Slovanský dům": Cinema.SLOVANAK,
+    "Praha - Edison Filmhub": Cinema.EDISON,
+    "Praha - Kino Aero": Cinema.AERO,
+    "Praha - Kino Atlas": Cinema.ATLAS,
+    "Praha - Kino Lucerna": Cinema.LUCERNA,
+    "Praha - Kino Pilotů": Cinema.PILOTI,
+    "Praha - Kino Světozor": Cinema.SVETOZOR,
+    "Praha - Přítomnost Boutique Cinema": Cinema.PRITOMNOST,
 }
 
 DATE_RE = re.compile(r"\d{1,2}.\d{1,2}.\d{4}")
@@ -48,27 +49,14 @@ TimeTableDict = dict[str, list[TimeTableScreening]]
 TimeTable = RootModel[TimeTableDict]
 
 
-class Screening(BaseModel):
-    cinema: str
-    title: str
-    film_url: str
-    year: int
-    country: str
-    starts_at: datetime
-    ends_at: datetime
-    rating: int | None
-
-
 router = Router[BeautifulSoupCrawlingContext]()
 
 
-async def scrape(flags: dict[str, str]) -> Calendar:
+async def scrape() -> list[Screening]:
     crawler = BeautifulSoupCrawler(request_handler=router)
     await crawler.run([CSFD_URL])
     dataset = await crawler.get_dataset()
-    return create_calendar(
-        [Screening(**item) async for item in dataset.iterate_items()], flags
-    )
+    return [Screening(**item) async for item in dataset.iterate_items()]
 
 
 @router.default_handler
@@ -192,39 +180,6 @@ def parse_country(text: str) -> str:
         return re.split(r"[/,]", text)[0].strip()
     except IndexError:
         raise ValueError(f"No country: {text!r}")
-
-
-def create_calendar(screenings: Iterable[Screening], flags: dict[str, str]) -> Calendar:
-    calendar = Calendar()
-    for screening in screenings:
-        calendar.events.add(create_event(screening, flags))
-    return calendar
-
-
-def create_event(screening: Screening, flags: dict[str, str]) -> Event:
-    name = (
-        f"{rating_to_emoji(screening.rating)} {screening.title}"
-        if screening.rating
-        else screening.title
-    )
-    return Event(
-        name=f"{name} ({flags[screening.country]} {screening.year})",
-        begin=screening.starts_at,
-        end=screening.ends_at,
-        location=screening.cinema,
-        url=screening.film_url,
-        description=screening.film_url,
-    )
-
-
-def rating_to_emoji(rating: int) -> str:
-    if rating < 30:
-        return "⚫️"
-    if rating < 70:
-        return "🔵"
-    if rating < 90:
-        return "🔴"
-    return "🟡"
 
 
 def to_user_data(timetable: TimeTableDict) -> dict[str, str]:

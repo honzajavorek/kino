@@ -45,7 +45,10 @@ jobs:
         run: poetry run ruff check
 
       - name: Scrape
-        run: poetry run kino -o site/kino.ics
+        run: poetry run kino
+
+      - name: Publish
+        run: mkdir ./site && mv *.ics ./site/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
