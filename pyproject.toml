@@ -19,9 +19,9 @@ pycountry = "^24.6.1"
 emoji-country-flag = "^2.0.1"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.3.4"
+pytest = "^8.3.5"
 pytest-ruff = "^0.4.1"
-ruff = "^0.9.6"
+ruff = "^0.9.9"
 
 [tool.pytest.ini_options]
 python_files = "test_*.py"
