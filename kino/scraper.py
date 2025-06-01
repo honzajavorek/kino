@@ -55,6 +55,8 @@ router = Router[BeautifulSoupCrawlingContext]()
 async def scrape() -> list[Screening]:
     crawler = BeautifulSoupCrawler(request_handler=router)
     await crawler.run([CSFD_URL])
+    if errors_count := crawler.statistics.state.requests_failed:
+        raise RuntimeError(f"Failed requests: {errors_count}")
     dataset = await crawler.get_dataset()
     return [Screening(**item) async for item in dataset.iterate_items()]
 
@@ -81,19 +83,24 @@ async def detault_handler(context: BeautifulSoupCrawlingContext):
                             title, film_url = parse_link(base_url, link)
                         else:
                             raise UnexpectedStructureError("No link found")
-                        if time := film.select_one(".td-time"):
-                            time_text = time.text.strip()
-                            starts_at = parse_time(starts_on, time_text)
+                        if times := film.select_one(".td-time"):
+                            if time_texts := parse_time_texts(times.text):
+                                for time_text in time_texts:
+                                    starts_at = parse_time(starts_on, time_text)
+                                    context.log.info(
+                                        f"Screening {starts_at} {film_url}"
+                                    )
+                                    timetable[film_url].append(
+                                        {
+                                            "cinema": cinema_name,
+                                            "title": title,
+                                            "starts_at": starts_at,
+                                        }
+                                    )
+                            else:
+                                raise UnexpectedStructureError("No time found")
                         else:
                             raise UnexpectedStructureError("No time found")
-                        context.log.info(f"Screening {starts_at} {film_url}")
-                        timetable[film_url].append(
-                            {
-                                "cinema": cinema_name,
-                                "title": title,
-                                "starts_at": starts_at,
-                            }
-                        )
                 else:
                     raise UnexpectedStructureError("No day set")
     await context.add_requests(
@@ -113,6 +120,10 @@ def parse_date(text: str) -> date:
         date_text = match.group()
         return datetime.strptime(date_text, "%d.%m.%Y").date()
     raise ValueError(f"No date: {text!r}")
+
+
+def parse_time_texts(text: str) -> list:
+    return list(filter(None, map(str.strip, text.split())))
 
 
 def parse_time(starts_on: date, text: str) -> datetime:
@@ -158,8 +169,10 @@ async def film_handler(context: BeautifulSoupCrawlingContext):
         )
 
 
-def parse_duration(text: str) -> int:
+def parse_duration(text: str, default_duration: int = 140) -> int:
     durations = [int(duration.group(1)) for duration in DURATION_RE.finditer(text)]
+    if not durations:
+        return default_duration
     return sum(durations) // len(durations)
 
 
