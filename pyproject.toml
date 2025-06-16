@@ -11,9 +11,9 @@ kino = "kino.__main__:main"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-crawlee = {extras = ["beautifulsoup"], version = "^0.5.4"}
+crawlee = {extras = ["beautifulsoup"], version = "^0.6.10"}
 click = "^8.2.1"
-pydantic = "^2.11.5"
+pydantic = "^2.11.7"
 ics = "^0.7.2"
 pycountry = "^24.6.1"
 emoji-country-flag = "^2.0.1"
