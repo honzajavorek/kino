@@ -11,7 +11,7 @@ kino = "kino.__main__:main"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-crawlee = {extras = ["beautifulsoup"], version = "^0.6.10"}
+crawlee = {extras = ["beautifulsoup"], version = "^0.6.11"}
 click = "^8.2.1"
 pydantic = "^2.11.7"
 ics = "^0.7.2"
@@ -19,9 +19,9 @@ pycountry = "^24.6.1"
 emoji-country-flag = "^2.0.1"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.4.0"
-pytest-ruff = "^0.4.1"
-ruff = "^0.11.13"
+pytest = "^8.4.1"
+pytest-ruff = "^0.5"
+ruff = "^0.12.0"
 
 [tool.pytest.ini_options]
 python_files = "test_*.py"
