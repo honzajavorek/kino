@@ -21,7 +21,7 @@ emoji-country-flag = "^2.0.1"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
 pytest-ruff = "^0.5"
-ruff = "^0.12.1"
+ruff = "^0.12.2"
 
 [tool.pytest.ini_options]
 python_files = "test_*.py"
