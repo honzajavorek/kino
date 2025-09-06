@@ -26,7 +26,7 @@ dev = [
 repository = "https://github.com/honzajavorek/kino"
 
 [project.scripts]
-p3news = "kino.__main__:main"
+kino = "kino.__main__:main"
 
 [tool.pytest.ini_options]
 python_files = "test_*.py"
