@@ -7,13 +7,13 @@ Honza Javorek's personal cinema scraper 📽️
 ```
 $ git clone git@github.com:honzajavorek/kino.git
 $ cd kino
-$ poetry install
+$ uv sync
 ```
 
 ## Usage
 
 ```
-$ poetry run kino
+$ uv run kino
 $ cat kino.ics
 ```
 

@@ -1,27 +1,32 @@
-[tool.poetry]
+[project]
 name = "kino"
 version = "0.1.0"
 description = "Honza Javorek's personal cinema scraper"
-authors = ["Honza Javorek <mail@honzajavorek.cz>"]
-license = "AGPL-3.0-only"
 readme = "README.md"
+authors = [{name = "Honza Javorek", email = "mail@honzajavorek.cz"}]
+license = {text = "AGPL-3.0-only"}
+requires-python = ">=3.13"
+dependencies = [
+    "click>=8.2.1",
+    "crawlee[beautifulsoup]>=0.6.12",
+    "emoji-country-flag>=2.0.1",
+    "ics>=0.7.2",
+    "pycountry>=24.6.1",
+    "pydantic>=2.11.7",
+]
 
-[tool.poetry.scripts]
-kino = "kino.__main__:main"
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-ruff>=0.5",
+    "ruff>=0.12.12",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-crawlee = {extras = ["beautifulsoup"], version = "^0.6.12"}
-click = "^8.2.1"
-pydantic = "^2.11.7"
-ics = "^0.7.2"
-pycountry = "^24.6.1"
-emoji-country-flag = "^2.0.1"
+[project.urls]
+repository = "https://github.com/honzajavorek/kino"
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.4.1"
-pytest-ruff = "^0.5"
-ruff = "^0.12.11"
+[project.scripts]
+p3news = "kino.__main__:main"
 
 [tool.pytest.ini_options]
 python_files = "test_*.py"
@@ -39,5 +44,5 @@ combine-as-imports = true
 lines-after-imports = 2
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.8.11,<0.9.0"]
+build-backend = "uv_build"

@@ -26,26 +26,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Install Poetry
-        run: pipx install poetry
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.12
-          cache: poetry
-
-      - name: Install dependencies
-        run: poetry install
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
 
       - name: Tests
-        run: poetry run pytest
+        run: uv run pytest
 
       - name: Code
-        run: poetry run ruff check
+        run: uv run ruff check
 
       - name: Scrape
-        run: poetry run kino
+        run: uv run kino
 
       - name: Publish
         run: mkdir ./site && mv *.ics ./site/
