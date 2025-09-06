@@ -1,3 +1,4 @@
+import json
 import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
@@ -9,12 +10,14 @@ from bs4 import Tag
 from crawlee import Request
 from crawlee.crawlers import BeautifulSoupCrawler, BeautifulSoupCrawlingContext
 from crawlee.router import Router
-from pydantic import RootModel
+from pydantic import RootModel, ValidationError
 
-from kino.models import Cinema, Screening
+from kino.models import Cinema, Screening, SecretScreening
 
 
 CSFD_URL = "https://www.csfd.cz/kino/1-praha/?period=week"
+
+AERO_NASLEPO_URL = "https://kinoaero.cz/?cinema=1&sort=sort-by-data&cycle=naslepo"
 
 CINEMAS = {
     "Praha - Cinema City Flora": Cinema.FLORA,
@@ -52,13 +55,25 @@ TimeTable = RootModel[TimeTableDict]
 router = Router[BeautifulSoupCrawlingContext]()
 
 
-async def scrape() -> list[Screening]:
+async def scrape() -> list[Screening | SecretScreening]:
     crawler = BeautifulSoupCrawler(request_handler=router)
-    await crawler.run([CSFD_URL])
+    await crawler.run(
+        [
+            CSFD_URL,
+            Request.from_url(AERO_NASLEPO_URL, label="aero_naslepo"),
+        ]
+    )
     if errors_count := crawler.statistics.state.requests_failed:
         raise RuntimeError(f"Failed requests: {errors_count}")
     dataset = await crawler.get_dataset()
-    return [Screening(**item) async for item in dataset.iterate_items()]
+    return [create_screening(item) async for item in dataset.iterate_items()]
+
+
+def create_screening(data: dict[str, Any]) -> Screening | SecretScreening:
+    try:
+        return Screening(**data)
+    except ValidationError:
+        return SecretScreening(**data)
 
 
 @router.default_handler
@@ -203,3 +218,25 @@ def to_user_data(timetable: TimeTableDict) -> dict[str, str]:
 def from_user_data(user_data: dict[str, Any]) -> TimeTableDict:
     # see https://github.com/apify/crawlee-python/issues/524#issuecomment-2364353782
     return TimeTable.model_validate_json(user_data["timetable"]).model_dump()
+
+
+@router.handler("aero_naslepo")
+async def aero_naslepo_handler(context: BeautifulSoupCrawlingContext):
+    context.log.info(f"Aero naslepo {context.request.url}")
+    for script in context.soup.select("#program .program script"):
+        if json_ld := script.string:
+            data = json.loads(json_ld)
+            starts_at = datetime.fromisoformat(data["startDate"])
+            screening_url = data["url"]
+            context.log.info(f"Screening {starts_at} {screening_url}")
+            await context.push_data(
+                {
+                    "title": "Aero naslepo",
+                    "screening_url": screening_url,
+                    "starts_at": starts_at,
+                    "ends_at": datetime.fromisoformat(data["endDate"]),
+                    "cinema": Cinema.AERO,
+                }
+            )
+        else:
+            raise UnexpectedStructureError("No JSON-LD found")

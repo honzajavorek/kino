@@ -2,9 +2,9 @@ import asyncio
 from pathlib import Path
 
 import click
+from ics import Calendar
 
 from kino.flags import fetch_flags
-from kino.icalendar import create_calendar
 from kino.models import Cinema
 from kino.scraper import scrape
 
@@ -42,9 +42,13 @@ def main(cinemas: list[tuple[Cinema, Path]]):
 
     for output_file, cinemas in files.items():
         output_file.parent.mkdir(parents=True, exist_ok=True)
-        calendar = create_calendar(
-            [s for s in screenings if s.cinema in cinemas], flags
-        )
+
+        calendar = Calendar()
+        for screening in screenings:
+            if screening.cinema in cinemas:
+                event = screening.to_ical(flags)
+                calendar.events.add(event)
+
         with output_file.open("w") as f:
             f.writelines(calendar.serialize_iter())
 
