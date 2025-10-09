@@ -5,7 +5,7 @@ description = "Honza Javorek's personal cinema scraper"
 readme = "README.md"
 authors = [{name = "Honza Javorek", email = "mail@honzajavorek.cz"}]
 license = {text = "AGPL-3.0-only"}
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"
 dependencies = [
     "click>=8.2.1",
     "crawlee[beautifulsoup]>=0.6.12",
