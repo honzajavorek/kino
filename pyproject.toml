@@ -10,6 +10,7 @@ dependencies = [
     "click>=8.2.1",
     "crawlee[beautifulsoup]>=0.6.12",
     "emoji-country-flag>=2.0.1",
+    "httpx>=0.28.1",
     "ics>=0.7.2",
     "pycountry>=24.6.1",
     "pydantic>=2.11.7",
