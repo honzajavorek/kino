@@ -80,16 +80,18 @@ def create_screening(data: dict[str, Any]) -> Screening | SecretScreening:
 async def detault_handler(context: BeautifulSoupCrawlingContext):
     base_url = context.request.url
     timetable = defaultdict(list)
-    for cinema in context.soup.select("#cinemas .box"):
-        if heading := cinema.select_one(".box-header h2"):
+    for cinema in context.soup.select("#snippet--cinemas .updated-box-cinema"):
+        if heading := cinema.select_one(".updated-box-header h2"):
             cinema_name = heading.text.strip()
         else:
             raise UnexpectedStructureError("No heading found")
         if cinema_name := CINEMAS.get(cinema_name):
             context.log.info(f"Cinema {cinema_name}")
             starts_on = None
-            for div in cinema.select(".box-sub-header, .box-content-table-cinema"):
-                if "box-sub-header" in div["class"]:
+            for div in cinema.select(
+                ".update-box-sub-header, .box-content-table-cinema"
+            ):
+                if "update-box-sub-header" in div["class"]:
                     starts_on = parse_date(div.text)
                     context.log.info(f"Day {starts_on}")
                 elif starts_on:
