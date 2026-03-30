@@ -31,6 +31,8 @@ CINEMAS = {
     "Praha - Přítomnost Boutique Cinema": Cinema.PRITOMNOST,
 }
 
+YEAR_RE = re.compile(r"(19|20)\d{2}")
+
 DATE_RE = re.compile(r"\d{1,2}.\d{1,2}.\d{4}")
 
 DURATION_RE = re.compile(r"(\d+) min")
@@ -200,14 +202,15 @@ def parse_rating_ptc(text: str) -> int | None:
 
 
 def parse_year(text: str) -> int:
-    if match := re.search(r"(19|20)\d{2}", text):
+    if match := re.search(YEAR_RE, text):
         return int(match.group())
     raise ValueError(f"No year: {text!r}")
 
 
 def parse_country(text: str) -> str:
     try:
-        return re.split(r"[/,]", text)[0].strip()
+        country_text = re.split(YEAR_RE, text)[0]
+        return country_text.split("/")[0].strip()
     except IndexError:
         raise ValueError(f"No country: {text!r}")
 

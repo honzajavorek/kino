@@ -20,6 +20,7 @@ CODES_MAPPING_CUSTOM = {
     "Kapverdy": "CV",
     "Korea": "KR",
     "Kosovo": "XK",
+    "Království Jugoslávie": "RS",
     "Království Srbů, Chorvatů a Slovinců": "RS",
     "Království Srbů": "RS",
     "Kréta": "GR",
