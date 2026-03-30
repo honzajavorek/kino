@@ -301,6 +301,7 @@ dependencies = [
     { name = "ics" },
     { name = "pycountry" },
     { name = "pydantic" },
+    { name = "tatsu" },
 ]
 
 [package.dev-dependencies]
@@ -319,6 +320,7 @@ requires-dist = [
     { name = "ics", specifier = ">=0.7.2" },
     { name = "pycountry", specifier = ">=24.6.1" },
     { name = "pydantic", specifier = ">=2.11.7" },
+    { name = "tatsu", specifier = "==5.13.2" },
 ]
 
 [package.metadata.requires-dev]
@@ -702,11 +704,11 @@ wheels = [
 
 [[package]]
 name = "tatsu"
-version = "5.18.0"
+version = "5.13.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/9b/86/03190394e9a2a79133d8d48201b1bf0a2eb4326cf510f53f0cc182370e0f/tatsu-5.18.0.tar.gz", hash = "sha256:b1d2859791649e5acffb4a31ef5e86b87c0ffd217390eebb053fe1a34cd8895b", size = 349286, upload-time = "2026-03-18T21:22:39.544Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/69/0dd8b975d30637701fde9ff3f8ea52a15fc64317ac9642f4cdeab8a93ad1/tatsu-5.13.2.tar.gz", hash = "sha256:d55aa0bdde2ab5efec73d96f9ce41b8a4aef5cee58eb6e05d1951ad3e03151d9", size = 132236, upload-time = "2025-09-25T22:41:44.561Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1d/7c/9dfff64b6fe0042ac343d312ecb8beee34baa6767cec8705419d4a90f8dc/tatsu-5.18.0-py3-none-any.whl", hash = "sha256:011c880d52f60cba1e1cb9ce76a463192646508a3891a82b6c9aaa40239c5c99", size = 167318, upload-time = "2026-03-18T21:22:38.281Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/57/bb1b683d46a78cf48aa40130d4f1ef82f50a73c72a9d9836d6347a3efbef/tatsu-5.13.2-py3-none-any.whl", hash = "sha256:482c6117e92e54fa770664b758f13b1729a01d5c94d7ccbc270d5ffa1dfe2d8a", size = 80340, upload-time = "2025-09-25T22:41:42.661Z" },
 ]
 
 [[package]]
