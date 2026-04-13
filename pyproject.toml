@@ -14,7 +14,7 @@ dependencies = [
     "ics>=0.7.2",
     "pycountry>=26.2.16",
     "pydantic>=2.13.0",
-    "tatsu==5.18.0",  # ics 0.7.2 breaks with newer tatsu during import
+    "tatsu==5.13.2",  # ics 0.7.2 breaks with tatsu >5.13.2 during import
 ]
 
 [dependency-groups]
