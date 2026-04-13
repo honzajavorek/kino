@@ -7,21 +7,21 @@ authors = [{name = "Honza Javorek", email = "mail@honzajavorek.cz"}]
 license = {text = "AGPL-3.0-only"}
 requires-python = ">=3.13,<3.14"
 dependencies = [
-    "click>=8.2.1",
-    "crawlee[beautifulsoup]>=0.6.12",
-    "emoji-country-flag>=2.0.1",
+    "click>=8.3.2",
+    "crawlee[beautifulsoup]>=1.6.2",
+    "emoji-country-flag>=2.1.0",
     "httpx>=0.28.1",
     "ics>=0.7.2",
-    "pycountry>=24.6.1",
-    "pydantic>=2.11.7",
-    "tatsu==5.13.2",  # ics 0.7.2 breaks with newer tatsu during import
+    "pycountry>=26.2.16",
+    "pydantic>=2.13.0",
+    "tatsu==5.18.0",  # ics 0.7.2 breaks with newer tatsu during import
 ]
 
 [dependency-groups]
 dev = [
-    "pytest>=8.4.2",
+    "pytest>=9.0.3",
     "pytest-ruff>=0.5",
-    "ruff>=0.12.12",
+    "ruff>=0.15.10",
 ]
 
 [project.urls]
@@ -46,5 +46,5 @@ combine-as-imports = true
 lines-after-imports = 2
 
 [build-system]
-requires = ["uv_build>=0.8.11,<0.11.0"]
+requires = ["uv_build>=0.11.6,<0.12.0"]
 build-backend = "uv_build"
