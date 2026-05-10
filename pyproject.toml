@@ -13,7 +13,7 @@ dependencies = [
     "httpx>=0.28.1",
     "ics>=0.7.3",
     "pycountry>=26.2.16",
-    "pydantic>=2.13.3",
+    "pydantic>=2.13.4",
     "tatsu==5.13.2",  # ics 0.7.2 breaks with tatsu >5.13.2 during import
 ]
 
@@ -46,5 +46,5 @@ combine-as-imports = true
 lines-after-imports = 2
 
 [build-system]
-requires = ["uv_build>=0.11.8,<0.12.0"]
+requires = ["uv_build>=0.11.12,<0.12.0"]
 build-backend = "uv_build"
