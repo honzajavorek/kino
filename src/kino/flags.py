@@ -9,7 +9,8 @@ from flag import flag_safe
 
 
 CODES_MAPPING_CUSTOM = {
-    "Anglické království, Anglická republika": "GB",
+    "Anglická republika", "GB"
+    "Anglické království": "GB",
     "Československo": "CZ",
     "Chorvatů a Slovinců": "HR",
     "Curacao": "CW",
