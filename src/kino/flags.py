@@ -80,17 +80,18 @@ def parse_flags(html: str, codes_mapping: dict[str, str]) -> dict[str, str]:
         flags_mapping = {}
         missing = set()
         for option in select.find_all("option"):
+            label = option.text.strip()
             try:
                 int(option["value"])
             except ValueError:
                 pass  # placeholder and continents
             else:
                 try:
-                    code = codes_mapping[option.text]
+                    code = codes_mapping[label]
                     flag = flag_safe(code, unsupported="error", invalid="error")
-                    flags_mapping[option.text] = flag
+                    flags_mapping[label] = flag
                 except KeyError:
-                    missing.add(option.text)
+                    missing.add(label)
         if missing:
             raise ValueError(f"Missing: {', '.join(missing)}")
         return flags_mapping

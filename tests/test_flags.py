@@ -19,3 +19,20 @@ def test_parse_flags_finds_country_select():
     # continents and the placeholder option must be skipped
     assert "Evropa" not in flags_mapping
     assert "-všechny-" not in flags_mapping
+
+
+def test_parse_flags_normalizes_whitespace():
+    # CSFD could reformat its markup and pad option labels with whitespace;
+    # that must not turn known countries into misses
+    html = """
+        <select name="country_id">
+            <option value="">-všechny-</option>
+            <option value="continent-1">Evropa</option>
+            <option value="252">\n    USA\n  </option>
+        </select>
+    """
+    codes_mapping = {"USA": "US"}
+
+    flags_mapping = parse_flags(html, codes_mapping)
+
+    assert flags_mapping == {"USA": "🇺🇸"}
