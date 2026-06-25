@@ -57,7 +57,7 @@ CODES_MAPPING_CUSTOM = {
 }
 
 
-def fetch_flags() -> dict[str, str]:
+def build_codes_mapping() -> dict[str, str]:
     czech = gettext.translation("iso3166-1", pycountry.LOCALES_DIR, languages=["cs"])
     czech.install()
 
@@ -70,29 +70,37 @@ def fetch_flags() -> dict[str, str]:
         for country in countries
         if hasattr(country, "common_name")
     }
-    codes_mapping = codes_mapping_official | codes_mapping_common | CODES_MAPPING_CUSTOM
+    return codes_mapping_official | codes_mapping_common | CODES_MAPPING_CUSTOM
 
-    response = httpx.get("https://www.csfd.cz/zebricky/vlastni-vyber/")
-    response.raise_for_status()
-    soup = BeautifulSoup(response.text, "html.parser")
 
-    if select := soup.select_one('select[name="origin"]'):
+def parse_flags(html: str, codes_mapping: dict[str, str]) -> dict[str, str]:
+    soup = BeautifulSoup(html, "html.parser")
+
+    if select := soup.select_one('select[name="country_id"]'):
         flags_mapping = {}
         missing = set()
         for option in select.find_all("option"):
+            label = option.text.strip()
             try:
                 int(option["value"])
             except ValueError:
-                pass  # continents
+                pass  # placeholder and continents
             else:
                 try:
-                    code = codes_mapping[option.text]
+                    code = codes_mapping[label]
                     flag = flag_safe(code, unsupported="error", invalid="error")
-                    flags_mapping[option.text] = flag
+                    flags_mapping[label] = flag
                 except KeyError:
-                    missing.add(option.text)
+                    missing.add(label)
         if missing:
             raise ValueError(f"Missing: {', '.join(missing)}")
         return flags_mapping
     else:
         raise ValueError("No select found")
+
+
+def fetch_flags() -> dict[str, str]:
+    codes_mapping = build_codes_mapping()
+    response = httpx.get("https://www.csfd.cz/zebricky/vlastni-vyber/")
+    response.raise_for_status()
+    return parse_flags(response.text, codes_mapping)
