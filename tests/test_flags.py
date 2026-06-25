@@ -7,7 +7,7 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 def test_parse_flags_finds_country_select():
-    html = (FIXTURES_DIR / "csfd_vlastni_vyber.html").read_text()
+    html = (FIXTURES_DIR / "csfd_vlastni_vyber.html").read_text(encoding="utf-8")
     codes_mapping = build_codes_mapping()
 
     flags_mapping = parse_flags(html, codes_mapping)
