@@ -15,6 +15,8 @@ from pydantic import RootModel, ValidationError
 from kino.models import Cinema, Screening, SecretScreening
 
 
+PRAGUE_TZ = ZoneInfo("Europe/Prague")
+
 CSFD_URL = "https://www.csfd.cz/kino/1-praha/?period=week"
 
 AERO_NASLEPO_URL = "https://kinoaero.cz/?cinema=1&sort=sort-by-data&cycle=naslepo"
@@ -137,7 +139,7 @@ def parse_link(base_url: str, tag: Tag) -> tuple[str, str]:
 def parse_date(text: str) -> date:
     if match := DATE_RE.search(text.strip()):
         date_text = match.group()
-        return datetime.strptime(date_text, "%d.%m.%Y").date()
+        return datetime.strptime(date_text, "%d.%m.%Y").replace(tzinfo=PRAGUE_TZ).date()
     raise ValueError(f"No date: {text!r}")
 
 
@@ -148,8 +150,8 @@ def parse_time_texts(text: str) -> list:
 def parse_time(starts_on: date, text: str) -> datetime:
     return datetime.combine(
         starts_on,
-        datetime.strptime(text.strip(), "%H:%M").time(),
-        tzinfo=ZoneInfo("Europe/Prague"),
+        datetime.strptime(text.strip(), "%H:%M").replace(tzinfo=PRAGUE_TZ).time(),
+        tzinfo=PRAGUE_TZ,
     )
 
 
