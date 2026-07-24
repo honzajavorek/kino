@@ -40,12 +40,12 @@ def main(cinemas: list[tuple[Cinema, Path]]):
     flags = fetch_flags()
     screenings = asyncio.run(scrape())
 
-    for output_file, cinemas in files.items():
+    for output_file, output_cinemas in files.items():
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         calendar = Calendar()
         for screening in screenings:
-            if screening.cinema in cinemas:
+            if screening.cinema in output_cinemas:
                 event = screening.to_ical(flags)
                 calendar.events.add(event)
 
