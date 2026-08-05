@@ -270,6 +270,7 @@ async def aero_handler(context: BeautifulSoupCrawlingContext):
             Request.from_url(
                 AERO_API_FILM_URL,
                 method="POST",
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
                 payload=urlencode({"pr": projection, "_locale": "cs"}).encode(),
                 label="aero_film",
                 unique_key=projection,  # all screenings share the api_film URL
