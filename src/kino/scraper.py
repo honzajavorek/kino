@@ -3,23 +3,27 @@ import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from typing import Any, TypedDict
-from urllib.parse import urljoin
+from urllib.parse import urlencode, urljoin
 from zoneinfo import ZoneInfo
 
 from bs4 import Tag
 from crawlee import Request
 from crawlee.crawlers import BeautifulSoupCrawler, BeautifulSoupCrawlingContext
 from crawlee.router import Router
-from pydantic import RootModel, ValidationError
+from pydantic import RootModel
 
-from kino.models import Cinema, Screening, SecretScreening
+from kino.models import AeroScreening, Cinema, Screening
 
 
 PRAGUE_TZ = ZoneInfo("Europe/Prague")
 
 CSFD_URL = "https://www.csfd.cz/kino/1-praha/?period=week"
 
-AERO_NASLEPO_URL = "https://kinoaero.cz/?cinema=1&sort=sort-by-data&cycle=naslepo"
+AERO_PROGRAM_URL = "https://kinoaero.cz/?cinema=1&sort=sort-by-data"
+
+AERO_API_FILM_URL = "https://kinoaero.cz/api_film"
+
+CSFD_FILM_ID_RE = re.compile(r"/film/(\d+)")
 
 CINEMAS = {
     "Praha - Cinema City Flora": Cinema.FLORA,
@@ -59,25 +63,54 @@ TimeTable = RootModel[TimeTableDict]
 router = Router[BeautifulSoupCrawlingContext]()
 
 
-async def scrape() -> list[Screening | SecretScreening]:
+async def scrape() -> list[Screening | AeroScreening]:
     crawler = BeautifulSoupCrawler(request_handler=router)
     await crawler.run(
         [
             CSFD_URL,
-            Request.from_url(AERO_NASLEPO_URL, label="aero_naslepo"),
+            Request.from_url(AERO_PROGRAM_URL, label="aero"),
         ]
     )
     if errors_count := crawler.statistics.state.requests_failed:
         raise RuntimeError(f"Failed requests: {errors_count}")
+
     dataset = await crawler.get_dataset()
-    return [create_screening(item) async for item in dataset.iterate_items()]
+    base: list[Screening] = []
+    aero: list[dict[str, Any]] = []
+    async for item in dataset.iterate_items():
+        if "film_url" in item:
+            base.append(Screening(**item))
+        else:
+            aero.append(item)
+    return pair(base, aero)
 
 
-def create_screening(data: dict[str, Any]) -> Screening | SecretScreening:
-    try:
-        return Screening(**data)
-    except ValidationError:
-        return SecretScreening(**data)
+def pair(
+    base: list[Screening], aero: list[dict[str, Any]]
+) -> list[Screening | AeroScreening]:
+    # Keep everything from the CSFD base, then add Aero screenings which aren't
+    # already there. A screening is the same when it's the same film (CSFD ID)
+    # at the same time.
+    known = {(csfd_film_id(s.film_url), s.starts_at) for s in base}
+    screenings: list[Screening | AeroScreening] = list(base)
+    for item in aero:
+        screening = AeroScreening(
+            cinema=Cinema.AERO,
+            title=item["title"],
+            screening_url=item["screening_url"],
+            starts_at=item["starts_at"],
+            ends_at=item["ends_at"],
+            emoji="😎" if "naslepo" in item["title"].lower() else "✈️",
+        )
+        if (item["csfd_id"], screening.starts_at) not in known:
+            screenings.append(screening)
+    return screenings
+
+
+def csfd_film_id(url: str) -> str | None:
+    if match := CSFD_FILM_ID_RE.search(url):
+        return match.group(1)
+    return None
 
 
 @router.default_handler
@@ -227,23 +260,63 @@ def from_user_data(user_data: dict[str, Any]) -> TimeTableDict:
     return TimeTable.model_validate_json(user_data["timetable"]).model_dump()
 
 
-@router.handler("aero_naslepo")
-async def aero_naslepo_handler(context: BeautifulSoupCrawlingContext):
-    context.log.info(f"Aero naslepo {context.request.url}")
-    for script in context.soup.select("#program .program script"):
-        if json_ld := script.string:
-            data = json.loads(json_ld)
-            starts_at = datetime.fromisoformat(data["startDate"])
-            screening_url = data["url"]
-            context.log.info(f"Screening {starts_at} {screening_url}")
-            await context.push_data(
-                {
-                    "title": "Aero naslepo",
-                    "screening_url": screening_url,
-                    "starts_at": starts_at,
-                    "ends_at": datetime.fromisoformat(data["endDate"]),
-                    "cinema": Cinema.AERO,
-                }
+@router.handler("aero")
+async def aero_handler(context: BeautifulSoupCrawlingContext):
+    context.log.info(f"Aero program {context.request.url}")
+    requests = []
+    for projection, screening in parse_aero_program(context.soup):
+        context.log.info(f"Screening {screening['starts_at']} {projection}")
+        requests.append(
+            Request.from_url(
+                AERO_API_FILM_URL,
+                method="POST",
+                payload=urlencode({"pr": projection, "_locale": "cs"}).encode(),
+                label="aero_film",
+                unique_key=projection,  # all screenings share the api_film URL
+                user_data=screening,
             )
-        else:
-            raise UnexpectedStructureError("No JSON-LD found")
+        )
+    await context.add_requests(requests)
+
+
+def parse_aero_program(soup: Tag) -> list[tuple[str, dict[str, str]]]:
+    program = []
+    for row in soup.select(".program__info-row"):
+        script = row.select_one('script[type="application/ld+json"]')
+        element = row.select_one("[data-projection]")
+        if not (script and script.string and element):
+            continue  # e.g. sold out or cancelled screenings
+        data = json.loads(script.string)
+        program.append(
+            (
+                str(element["data-projection"]),
+                {
+                    "title": data["name"],
+                    "screening_url": data["url"],
+                    "starts_at": data["startDate"],
+                    "ends_at": data["endDate"],
+                },
+            )
+        )
+    return program
+
+
+@router.handler("aero_film")
+async def aero_film_handler(context: BeautifulSoupCrawlingContext):
+    context.log.info(f"Aero film {context.request.user_data['title']}")
+    await context.push_data(
+        {
+            "title": context.request.user_data["title"],
+            "screening_url": context.request.user_data["screening_url"],
+            "starts_at": context.request.user_data["starts_at"],
+            "ends_at": context.request.user_data["ends_at"],
+            "csfd_id": parse_aero_csfd_id(context.soup),
+        }
+    )
+
+
+def parse_aero_csfd_id(soup: Tag) -> str | None:
+    # Missing link means Aero naslepo or a special event without a CSFD page.
+    if link := soup.select_one('a[href*="csfd.cz/film/"]'):
+        return csfd_film_id(str(link["href"]))
+    return None

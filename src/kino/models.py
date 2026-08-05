@@ -43,16 +43,20 @@ class Screening(BaseModel):
         )
 
 
-class SecretScreening(BaseModel):
+class AeroScreening(BaseModel):
+    """A Kino Aero screening without matching CSFD data (e.g. Aero naslepo
+    or a special event). Carries its own emoji: 😎 for naslepo, ✈️ otherwise."""
+
     cinema: Cinema
     title: str
     screening_url: str
     starts_at: datetime
     ends_at: datetime
+    emoji: str
 
     def to_ical(self, flags: dict[str, str]) -> Event:
         return Event(
-            name=f"😎 {self.title}",
+            name=f"{self.emoji} {self.title}",
             begin=self.starts_at,
             end=self.ends_at,
             location=str(self.cinema),
