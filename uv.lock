@@ -314,7 +314,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.4.2" },
-    { name = "crawlee", extras = ["beautifulsoup"], specifier = ">=1.8.2" },
+    { name = "crawlee", extras = ["beautifulsoup"], specifier = ">=1.8.3" },
     { name = "emoji-country-flag", specifier = ">=2.1.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "ics", specifier = ">=0.7.3" },
@@ -327,7 +327,7 @@ requires-dist = [
 dev = [
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-ruff", specifier = ">=0.5" },
-    { name = "ruff", specifier = ">=0.15.22" },
+    { name = "ruff", specifier = ">=0.16.0" },
 ]
 
 [[package]]
