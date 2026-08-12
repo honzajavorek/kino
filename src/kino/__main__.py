@@ -16,14 +16,12 @@ from kino.scraper import scrape
     "cinemas",
     default=[
         ("AERO", "kino.ics"),
-        ("ATLAS", "kino-extra.ics"),
-        ("EDISON", "kino.ics"),
+        ("EDISON", "kino-extra.ics"),
         ("FLORA", "kino-multi.ics"),
-        ("LUCERNA", "kino.ics"),
-        ("PILOTI", "kino-extra.ics"),
+        ("LUCERNA", "kino-extra.ics"),
         ("PRITOMNOST", "kino.ics"),
         ("SLOVANAK", "kino-multi.ics"),
-        ("SVETOZOR", "kino.ics"),
+        ("SVETOZOR", "kino-extra.ics"),
     ],
     help="Cinema specification",
     type=(
