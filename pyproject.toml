@@ -7,8 +7,8 @@ authors = [{name = "Honza Javorek", email = "mail@honzajavorek.cz"}]
 license = {text = "AGPL-3.0-only"}
 requires-python = ">=3.13,<3.14"
 dependencies = [
-    "click>=8.4.2",
-    "crawlee[beautifulsoup]>=1.9.2",
+    "click>=8.5.0",
+    "crawlee[beautifulsoup]>=1.9.3",
     "emoji-country-flag>=2.1.0",
     "httpx>=0.28.1",
     "ics>=0.7.3",
@@ -21,7 +21,7 @@ dependencies = [
 dev = [
     "pytest>=9.1.1",
     "pytest-ruff>=0.5",
-    "ruff>=0.16.3",
+    "ruff>=0.16.5",
 ]
 
 [project.urls]
@@ -46,5 +46,5 @@ combine-as-imports = true
 lines-after-imports = 2
 
 [build-system]
-requires = ["uv_build>=0.12.5,<0.13.0"]
+requires = ["uv_build>=0.12.6,<0.13.0"]
 build-backend = "uv_build"
