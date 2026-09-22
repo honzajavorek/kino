@@ -52,7 +52,9 @@ async def _pass_challenge(page: Page, timeout: float = 60000) -> None:
     "Calculating... Speed: NkH/s"), then reloads into the real page once
     solved. The title flips the moment that reload's response head is
     parsed, well before its body has arrived - reading content right then
-    grabs a page with a real title but nothing else.
+    grabs a page with a real title but nothing else. Waiting for that
+    reload's "load" event (not "networkidle": CSFD's pages never go fully
+    quiet, so that wait just times out) fixes it.
     """
     if await page.title() == CHALLENGE_TITLE:
         await page.wait_for_function(
@@ -60,7 +62,7 @@ async def _pass_challenge(page: Page, timeout: float = 60000) -> None:
             arg=CHALLENGE_TITLE,
             timeout=timeout,
         )
-        await page.wait_for_load_state("networkidle", timeout=timeout)
+        await page.wait_for_load_state("load", timeout=timeout)
     if await page.title() == DENIED_TITLE:
         body = await page.inner_text("body")
         raise DeniedError(body.strip().splitlines()[0] if body.strip() else "denied")
@@ -91,14 +93,6 @@ def get_csfd_crawler(**kwargs: Any) -> PlaywrightCrawler:
     challenge after every navigation, before its request handler sees the
     page. Takes the same keyword arguments as PlaywrightCrawler.
     """
-    # CSFD fills in parts of the page (e.g. the country/genre filter select
-    # boxes) via a follow-up request after the "load" event Playwright's own
-    # default waits for; wait for the network to settle instead, or handlers
-    # see a page that's there but still missing content.
-    kwargs["goto_options"] = {
-        "wait_until": "networkidle",
-        **kwargs.pop("goto_options", {}),
-    }
     crawler = PlaywrightCrawler(
         browser_pool=BrowserPool(
             plugins=[CamoufoxPlugin(browser_launch_options=LAUNCH_OPTIONS)]
@@ -123,7 +117,6 @@ async def fetch_html(url: str, **kwargs: Any) -> str:
     CSFD denies the request outright rather than offering a challenge to
     solve, since that isn't recoverable within the same session.
     """
-    kwargs.setdefault("wait_until", "networkidle")
     error: DeniedError | None = None
     for _ in range(FETCH_ATTEMPTS):
         async with AsyncCamoufox(headless=True, **LAUNCH_OPTIONS) as browser:
