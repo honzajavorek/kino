@@ -31,12 +31,19 @@ jobs:
         run: |
           uv run python -c "
           import asyncio
-          from kino.flags import fetch_flags
+          from kino.csfd import fetch_html
+          from kino.flags import FLAGS_URL
 
           async def main():
-              flags = await fetch_flags()
-              print('flags found:', len(flags))
-              print('sample:', dict(list(flags.items())[:5]))
+              html = await fetch_html(FLAGS_URL, timeout=30000)
+              print('content length:', len(html))
+              print('select count:', html.count('<select'))
+              for marker in ('cookie', 'consent', 'OneTrust', 'gdpr', 'Přihlásit', 'login'):
+                  print(f'{marker!r} occurrences:', html.lower().count(marker.lower()))
+              print('--- first 3000 chars ---')
+              print(html[:3000])
+              print('--- last 1000 chars ---')
+              print(html[-1000:])
 
           asyncio.run(main())
           "
