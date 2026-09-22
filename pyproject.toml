@@ -7,10 +7,10 @@ authors = [{name = "Honza Javorek", email = "mail@honzajavorek.cz"}]
 license = {text = "AGPL-3.0-only"}
 requires-python = ">=3.13,<3.14"
 dependencies = [
+    "camoufox>=0.5.6",
     "click>=8.5.0",
-    "crawlee[beautifulsoup]>=1.10.1",
+    "crawlee[beautifulsoup,playwright]>=1.10.1",
     "emoji-country-flag>=2.1.0",
-    "httpx>=0.28.1",
     "ics>=0.7.3",
     "pycountry>=26.2.16",
     "pydantic>=2.13.5",

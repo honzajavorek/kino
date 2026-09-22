@@ -1,11 +1,15 @@
 import gettext
 from typing import cast
 
-import httpx
 import pycountry
 import pycountry.db
 from bs4 import BeautifulSoup
 from flag import flag_safe
+
+from kino.csfd import csfd_page
+
+
+FLAGS_URL = "https://www.csfd.cz/zebricky/vlastni-vyber/"
 
 
 CODES_MAPPING_CUSTOM = {
@@ -99,8 +103,11 @@ def parse_flags(html: str, codes_mapping: dict[str, str]) -> dict[str, str]:
         raise ValueError("No select found")
 
 
-def fetch_flags() -> dict[str, str]:
+async def fetch_flags() -> dict[str, str]:
     codes_mapping = build_codes_mapping()
-    response = httpx.get("https://www.csfd.cz/zebricky/vlastni-vyber/")
-    response.raise_for_status()
-    return parse_flags(response.text, codes_mapping)
+
+    async with csfd_page() as page:
+        await page.goto(FLAGS_URL, wait_until="load", timeout=30000)
+        html = await page.content()
+
+    return parse_flags(html, codes_mapping)
