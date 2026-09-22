@@ -20,6 +20,7 @@ from crawlee.crawlers import (
     PlaywrightCrawler,
     PlaywrightPostNavCrawlingContext,
 )
+from crawlee.sessions import SessionPool
 from playwright.async_api import Page
 
 
@@ -38,6 +39,12 @@ CHALLENGE_TITLE = "Making sure you're not a bot!"
 DENIED_TITLE = "Oh noes!"
 
 FETCH_ATTEMPTS = 3
+
+# crawlee's default session pool (1000) is far larger than one scrape run's
+# page count, so nearly every page draws a fresh, cookie-less session at
+# random. A small pool makes sessions - and so the Anubis auth cookie
+# captured on a session's first solved challenge - actually get reused.
+SESSION_POOL_SIZE = 5
 
 
 class DeniedError(RuntimeError):
@@ -104,6 +111,11 @@ def get_csfd_crawler(**kwargs: Any) -> PlaywrightCrawler:
             # pool's default of reusing a browser for its next 100 pages.
             retire_browser_after_page_count=1,
         ),
+        # crawlee applies a session's cookies to every page before it
+        # navigates, regardless of which browser serves it - so reusing
+        # sessions (not browsers) is what lets the Anubis cookie skip the
+        # challenge on later pages.
+        session_pool=SessionPool(max_pool_size=SESSION_POOL_SIZE),
         **kwargs,
     )
 
