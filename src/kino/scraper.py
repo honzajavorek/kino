@@ -77,7 +77,7 @@ async def scrape() -> list[Screening | AeroScreening]:
         raise RuntimeError(f"Failed CSFD requests: {errors_count}")
 
     aero_crawler = BeautifulSoupCrawler(request_handler=aero_router)
-    await aero_crawler.run([Request.from_url(AERO_PROGRAM_URL, label="aero")])
+    await aero_crawler.run([AERO_PROGRAM_URL])
     if errors_count := aero_crawler.statistics.state.requests_failed:
         raise RuntimeError(f"Failed Aero requests: {errors_count}")
 
@@ -275,7 +275,7 @@ def from_user_data(user_data: dict[str, Any]) -> TimeTableDict:
     return TimeTable.model_validate_json(user_data["timetable"]).model_dump()
 
 
-@aero_router.handler("aero")
+@aero_router.default_handler
 async def aero_handler(context: BeautifulSoupCrawlingContext):
     """Enqueue an api_film detail lookup for each screening in the program."""
     context.log.info(f"Aero program {context.request.url}")
@@ -288,7 +288,7 @@ async def aero_handler(context: BeautifulSoupCrawlingContext):
                 method="POST",
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 payload=urlencode({"pr": projection, "_locale": "cs"}).encode(),
-                label="aero_film",
+                label="film",
                 unique_key=projection,  # all screenings share the api_film URL
                 user_data=screening,
             )
@@ -325,7 +325,7 @@ def parse_aero_program(soup: Tag) -> list[tuple[str, dict[str, str]]]:
     return program
 
 
-@aero_router.handler("aero_film")
+@aero_router.handler("film")
 async def aero_film_handler(context: BeautifulSoupCrawlingContext):
     """Collect a single Aero screening together with its CSFD ID (if any)."""
     context.log.info(f"Aero film {context.request.user_data['title']}")
