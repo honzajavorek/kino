@@ -31,23 +31,12 @@ jobs:
         run: |
           uv run python -c "
           import asyncio
-          from camoufox.async_api import AsyncCamoufox
-          from kino.flags import FLAGS_URL
+          from kino.flags import fetch_flags
 
           async def main():
-              async with AsyncCamoufox(headless=True) as browser:
-                  page = await browser.new_page()
-                  response = await page.goto(FLAGS_URL, wait_until='networkidle', timeout=30000)
-                  print('status:', response.status if response else None)
-                  print('final url:', page.url)
-                  print('headers:', dict(response.headers) if response else None)
-                  print('title:', await page.title())
-                  body_len = len(await page.content())
-                  print('content length:', body_len)
-                  text = await page.inner_text('body')
-                  print('body text (first 500):', text[:500])
-                  select_count = len(await page.query_selector_all('select'))
-                  print('select elements found:', select_count)
+              flags = await fetch_flags()
+              print('flags found:', len(flags))
+              print('sample:', dict(list(flags.items())[:5]))
 
           asyncio.run(main())
           "

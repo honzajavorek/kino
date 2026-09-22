@@ -9,7 +9,7 @@ browser/crawler that already does that, so they never see a challenge page.
 
 from typing import Any, override
 
-from camoufox import AsyncNewBrowser
+from camoufox import AsyncNewBrowser, DefaultAddons
 from camoufox.async_api import AsyncCamoufox
 from crawlee.browsers import (
     BrowserPool,
@@ -22,6 +22,13 @@ from crawlee.crawlers import (
 )
 from playwright.async_api import Page
 
+
+# Camoufox bundles uBlock Origin by default. It blocks Anubis's own challenge
+# script - served from a path generic filter lists flag as tracking, e.g.
+# /.within.website/x/cmd/anubis/... - which strands the browser on the
+# challenge page with "Anubis could not load its JavaScript" instead of ever
+# solving it. Every Camoufox launch below excludes it.
+LAUNCH_OPTIONS: dict[str, Any] = {"exclude_addons": [DefaultAddons.UBO]}
 
 CHALLENGE_TITLE = "Making sure you're not a bot!"
 
@@ -90,7 +97,9 @@ def get_csfd_crawler(**kwargs: Any) -> PlaywrightCrawler:
         **kwargs.pop("goto_options", {}),
     }
     crawler = PlaywrightCrawler(
-        browser_pool=BrowserPool(plugins=[CamoufoxPlugin()]),
+        browser_pool=BrowserPool(
+            plugins=[CamoufoxPlugin(browser_launch_options=LAUNCH_OPTIONS)]
+        ),
         **kwargs,
     )
 
@@ -114,7 +123,7 @@ async def fetch_html(url: str, **kwargs: Any) -> str:
     kwargs.setdefault("wait_until", "networkidle")
     error: DeniedError | None = None
     for _ in range(FETCH_ATTEMPTS):
-        async with AsyncCamoufox(headless=True) as browser:
+        async with AsyncCamoufox(headless=True, **LAUNCH_OPTIONS) as browser:
             page = await browser.new_page()
             await page.goto(url, **kwargs)
             try:
