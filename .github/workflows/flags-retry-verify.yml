@@ -33,17 +33,30 @@ jobs:
           import asyncio
           from kino.csfd import fetch_html
           from kino.flags import FLAGS_URL
+          from kino.scraper import CSFD_URL
+
+          URLS = [
+              FLAGS_URL,
+              CSFD_URL,
+              'https://www.csfd.cz/film/2358-vecerni-skola/',
+              'https://www.csfd.cz/',
+          ]
+
+          async def check(url):
+              print(f'=== {url} ===')
+              try:
+                  html = await fetch_html(url, timeout=30000)
+              except Exception as exc:
+                  print('error:', repr(exc))
+                  return
+              has_body = '<body' in html
+              print('content length:', len(html), '| has <body>:', has_body)
+              if not has_body:
+                  print('tail:', html[-300:])
 
           async def main():
-              html = await fetch_html(FLAGS_URL, timeout=30000)
-              print('content length:', len(html))
-              print('select count:', html.count('<select'))
-              for marker in ('cookie', 'consent', 'OneTrust', 'gdpr', 'Přihlásit', 'login'):
-                  print(f'{marker!r} occurrences:', html.lower().count(marker.lower()))
-              print('--- first 3000 chars ---')
-              print(html[:3000])
-              print('--- last 1000 chars ---')
-              print(html[-1000:])
+              for url in URLS:
+                  await check(url)
 
           asyncio.run(main())
           "

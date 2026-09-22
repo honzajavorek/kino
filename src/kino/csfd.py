@@ -49,8 +49,10 @@ async def _pass_challenge(page: Page, timeout: float = 60000) -> None:
     CSFD denied the request outright instead.
 
     The challenge computes a hash puzzle client-side (visible on the page as
-    "Calculating... Speed: NkH/s") before redirecting to the real page; a
-    plain page load returns long before that finishes.
+    "Calculating... Speed: NkH/s"), then reloads into the real page once
+    solved. The title flips the moment that reload's response head is
+    parsed, well before its body has arrived - reading content right then
+    grabs a page with a real title but nothing else.
     """
     if await page.title() == CHALLENGE_TITLE:
         await page.wait_for_function(
@@ -58,6 +60,7 @@ async def _pass_challenge(page: Page, timeout: float = 60000) -> None:
             arg=CHALLENGE_TITLE,
             timeout=timeout,
         )
+        await page.wait_for_load_state("networkidle", timeout=timeout)
     if await page.title() == DENIED_TITLE:
         body = await page.inner_text("body")
         raise DeniedError(body.strip().splitlines()[0] if body.strip() else "denied")
