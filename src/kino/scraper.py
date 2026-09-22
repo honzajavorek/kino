@@ -29,10 +29,6 @@ AERO_PROGRAM_URL = "https://kinoaero.cz/?cinema=1&sort=sort-by-data"
 
 AERO_API_FILM_URL = "https://kinoaero.cz/api_film"
 
-# A film's year/country/duration/rating essentially never change, so caching
-# them avoids clearing CSFD's challenge again for every film still showing
-# from a previous run. Persisted across CI runs (see scrape.yml); expires
-# after ~6 months so a film's page eventually gets re-checked.
 FILM_CACHE_TTL = 60 * 60 * 24 * 30 * 6
 film_cache = Cache(".cache/csfd_films")
 
@@ -180,16 +176,16 @@ async def detault_handler(context: PlaywrightCrawlingContext):
                     raise UnexpectedStructureError("No day set")
     requests = []
     for film_url, screenings in timetable.items():
-        if metadata := film_cache.get(film_url):
+        if film := film_cache.get(film_url):
             for screening in screenings:
                 await context.push_data(
                     {
                         "film_url": film_url,
                         "ends_at": screening["starts_at"]
-                        + timedelta(minutes=metadata["duration"]),
-                        "rating": metadata["rating"],
-                        "year": metadata["year"],
-                        "country": metadata["country"],
+                        + timedelta(minutes=film["duration"]),
+                        "rating": film["rating"],
+                        "year": film["year"],
+                        "country": film["country"],
                         **screening,
                     }
                 )
