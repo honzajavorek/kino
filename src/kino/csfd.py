@@ -95,7 +95,10 @@ def get_csfd_crawler(**kwargs: Any) -> PlaywrightCrawler:
     """
     crawler = PlaywrightCrawler(
         browser_pool=BrowserPool(
-            plugins=[CamoufoxPlugin(browser_launch_options=LAUNCH_OPTIONS)]
+            plugins=[CamoufoxPlugin(browser_launch_options=LAUNCH_OPTIONS)],
+            # A DeniedError retry needs a genuinely fresh fingerprint, not the
+            # pool's default of reusing a browser for its next 100 pages.
+            retire_browser_after_page_count=1,
         ),
         **kwargs,
     )

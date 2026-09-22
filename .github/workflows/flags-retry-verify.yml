@@ -4,8 +4,6 @@ name: flags-retry-verify
 # that a real failure now reports what happened. Delete once confirmed.
 
 on:
-  push:
-    branches: [claude/flags-retry-and-diagnostics]
   workflow_dispatch:
 
 jobs:
@@ -48,11 +46,12 @@ jobs:
                   html = await fetch_html(url, timeout=30000)
               except Exception as exc:
                   print('error:', repr(exc))
-                  return
+                  raise
               has_body = '<body' in html
               print('content length:', len(html), '| has <body>:', has_body)
               if not has_body:
                   print('tail:', html[-300:])
+                  raise RuntimeError('response has no body')
 
           async def main():
               for url in URLS:
