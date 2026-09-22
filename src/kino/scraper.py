@@ -2,28 +2,21 @@ import json
 import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
-from typing import Any, TypedDict, override
+from typing import Any, TypedDict
 from urllib.parse import urlencode, urljoin
 from zoneinfo import ZoneInfo
 
 from bs4 import BeautifulSoup, Tag
-from camoufox import AsyncNewBrowser
 from crawlee import Request
-from crawlee.browsers import (
-    BrowserPool,
-    PlaywrightBrowserController,
-    PlaywrightBrowserPlugin,
-)
 from crawlee.crawlers import (
     BeautifulSoupCrawler,
     BeautifulSoupCrawlingContext,
-    PlaywrightCrawler,
     PlaywrightCrawlingContext,
 )
 from crawlee.router import Router
 from pydantic import RootModel
 
-from kino.antibot import wait_out_challenge
+from kino.antibot import get_crawler
 from kino.models import AeroScreening, Cinema, Screening
 
 
@@ -72,36 +65,13 @@ TimeTableDict = dict[str, list[TimeTableScreening]]
 TimeTable = RootModel[TimeTableDict]
 
 
-class CamoufoxPlugin(PlaywrightBrowserPlugin):
-    """A browser plugin that launches Camoufox instead of a stock Playwright
-    browser, so CSFD requests clear its JS proof-of-work challenge.
-
-    See https://crawlee.dev/python/docs/examples/playwright-crawler-with-camoufox
-    """
-
-    @override
-    async def new_browser(self) -> PlaywrightBrowserController:
-        if not self._playwright:
-            raise RuntimeError("Playwright browser plugin is not initialized.")
-        return PlaywrightBrowserController(
-            browser=await AsyncNewBrowser(
-                self._playwright, **self._browser_launch_options
-            ),
-            max_open_pages_per_browser=1,
-            header_generator=None,  # Camoufox generates its own headers
-        )
-
-
 csfd_router = Router[PlaywrightCrawlingContext]()
 
 aero_router = Router[BeautifulSoupCrawlingContext]()
 
 
 async def scrape() -> list[Screening | AeroScreening]:
-    csfd_crawler = PlaywrightCrawler(
-        request_handler=csfd_router,
-        browser_pool=BrowserPool(plugins=[CamoufoxPlugin()]),
-    )
+    csfd_crawler = get_crawler(request_handler=csfd_router)
     await csfd_crawler.run([CSFD_URL])
     if errors_count := csfd_crawler.statistics.state.requests_failed:
         raise RuntimeError(f"Failed CSFD requests: {errors_count}")
@@ -156,7 +126,6 @@ def csfd_film_id(url: str) -> str | None:
 
 @csfd_router.default_handler
 async def detault_handler(context: PlaywrightCrawlingContext):
-    await wait_out_challenge(context.page)
     soup = BeautifulSoup(await context.page.content(), "html.parser")
 
     base_url = context.request.url
@@ -235,7 +204,6 @@ def parse_time(starts_on: date, text: str) -> datetime:
 @csfd_router.handler("film")
 async def film_handler(context: PlaywrightCrawlingContext):
     context.log.info(f"Film {context.request.url}")
-    await wait_out_challenge(context.page)
     soup = BeautifulSoup(await context.page.content(), "html.parser")
 
     timetable = from_user_data(context.request.user_data)
