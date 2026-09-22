@@ -14,6 +14,7 @@ from crawlee.crawlers import (
     PlaywrightCrawlingContext,
 )
 from crawlee.router import Router
+from diskcache import Cache
 from pydantic import RootModel
 
 from kino.csfd import get_csfd_crawler
@@ -27,6 +28,9 @@ CSFD_URL = "https://www.csfd.cz/kino/1-praha/?period=week"
 AERO_PROGRAM_URL = "https://kinoaero.cz/?cinema=1&sort=sort-by-data"
 
 AERO_API_FILM_URL = "https://kinoaero.cz/api_film"
+
+FILM_CACHE_TTL = 60 * 60 * 24 * 30 * 6
+film_cache = Cache(".cache/csfd_films")
 
 CSFD_FILM_ID_RE = re.compile(r"/film/(\d+)")
 
@@ -170,12 +174,30 @@ async def detault_handler(context: PlaywrightCrawlingContext):
                             raise UnexpectedStructureError("No time found")
                 else:
                     raise UnexpectedStructureError("No day set")
-    await context.add_requests(
-        [
-            Request.from_url(film_url, user_data=to_user_data(timetable), label="film")
-            for film_url in timetable
-        ]
-    )
+    requests = []
+    for film_url, screenings in timetable.items():
+        if film := film_cache.get(film_url):
+            for screening in screenings:
+                await context.push_data(
+                    {
+                        "film_url": film_url,
+                        "ends_at": screening["starts_at"]
+                        + timedelta(minutes=film["duration"]),
+                        "rating": film["rating"],
+                        "year": film["year"],
+                        "country": film["country"],
+                        **screening,
+                    }
+                )
+        else:
+            requests.append(
+                Request.from_url(
+                    film_url,
+                    user_data=to_user_data({film_url: screenings}),
+                    label="film",
+                )
+            )
+    await context.add_requests(requests)
 
 
 def parse_link(base_url: str, tag: Tag) -> tuple[str, str]:
@@ -224,6 +246,12 @@ async def film_handler(context: PlaywrightCrawlingContext):
         rating_ptc = parse_rating_ptc(rating.text)
     else:
         rating_ptc = None
+
+    film_cache.set(
+        context.request.url,
+        {"duration": duration, "rating": rating_ptc, "year": year, "country": country},
+        expire=FILM_CACHE_TTL,
+    )
 
     for screening in screenings:
         await context.push_data(

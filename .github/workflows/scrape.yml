@@ -29,6 +29,14 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
+      - name: Restore film cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/csfd_films
+          key: film-cache-${{ github.run_id }}
+          restore-keys: |
+            film-cache-
+
       - name: Tests
         run: uv run pytest
 
@@ -40,6 +48,13 @@ jobs:
 
       - name: Scrape
         run: uv run kino
+
+      - name: Save film cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/csfd_films
+          key: film-cache-${{ github.run_id }}
 
       - name: Publish
         run: mkdir ./site && mv *.ics ./site/
