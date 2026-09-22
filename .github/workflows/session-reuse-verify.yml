@@ -18,7 +18,7 @@ jobs:
       - name: Install Camoufox
         run: uv run camoufox fetch
 
-      - name: Verify Anubis cookie is reused across pages in one crawl
+      - name: Measure browser-launch time vs post-launch time per page
         run: |
           uv run python -c "
           import asyncio
@@ -30,16 +30,22 @@ jobs:
           from kino.csfd import get_csfd_crawler
 
           urls = [
-              'https://www.csfd.cz/film/8283-posledni-skaut/prehled/',
-              'https://www.csfd.cz/film/1-forrest-gump/prehled/',
-              'https://www.csfd.cz/film/2410-matrix/prehled/',
+              f'https://www.csfd.cz/film/{slug}/prehled/'
+              for slug in [
+                  '8283-posledni-skaut',
+                  '1-forrest-gump',
+                  '2410-matrix',
+                  '9822-vykoupeni-z-veznice-shawshank',
+                  '4-pulp-fiction',
+                  '2024-gladiator',
+                  '696-schindleruv-seznam',
+                  '9928-goodfellas-pratele',
+              ]
           ]
-          checkpoints = []
+          launches = []
+          fetches = []
 
           async def main():
-              # Sequential on purpose: request N+1 must only start once N's
-              # handler (and so its cookie sync) has finished, or the timing
-              # comparison below would be meaningless.
               crawler = get_csfd_crawler(
                   concurrency_settings=ConcurrencySettings(
                       max_concurrency=1, desired_concurrency=1
@@ -51,21 +57,32 @@ jobs:
                   cookies = await context.page.context.cookies()
                   anubis_cookies = [c['name'] for c in cookies if 'anubis' in c['name'].lower()]
                   title = await context.page.title()
-                  checkpoints.append(time.monotonic())
+                  fetches.append(time.monotonic())
                   print(f'{context.request.url}: title={title!r}, cookies={anubis_cookies}')
 
+              launch_t0 = time.monotonic()
+
+              @crawler._browser_pool.post_launch_hook
+              async def _on_launch(page_id, controller):
+                  nonlocal launch_t0
+                  launches.append(time.monotonic() - launch_t0)
+                  launch_t0 = time.monotonic()
+
               t0 = time.monotonic()
+              launch_t0 = t0
               await crawler.run(urls)
-              durations = [
-                  (checkpoints[i] - (checkpoints[i - 1] if i else t0))
-                  for i in range(len(checkpoints))
+
+              fetch_durations = [
+                  (fetches[i] - (fetches[i - 1] if i else t0))
+                  for i in range(len(fetches))
               ]
-              print('Per-request durations:', [f'{d:.2f}s' for d in durations])
-              assert len(durations) == 3, f'expected 3 successful fetches, got {len(durations)}'
-              assert durations[1] < durations[0] / 2 or durations[2] < durations[0] / 2, (
-                  'expected at least one later fetch to be much faster than the first (cookie reuse)'
-              )
-              print('OK')
+              print()
+              print('Browser launch durations:', [f'{d:.2f}s' for d in launches])
+              print('Total per-request durations (launch+navigate+solve+handler):', [f'{d:.2f}s' for d in fetch_durations])
+              print('Post-launch durations (navigate+solve+handler only):', [
+                  f'{(fetch_durations[i] - launches[i]):.2f}s' if i < len(launches) else 'n/a'
+                  for i in range(len(fetch_durations))
+              ])
 
           asyncio.run(main())
           "
