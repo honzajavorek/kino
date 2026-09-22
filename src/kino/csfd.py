@@ -7,11 +7,9 @@ client-side hash loop before the real page is there to read. Callers get a
 browser/crawler that already does that, so they never see a challenge page.
 """
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from typing import Any, override
 
-from camoufox import AsyncNewBrowser
+from camoufox import AsyncNewBrowser, DefaultAddons
 from camoufox.async_api import AsyncCamoufox
 from crawlee.browsers import (
     BrowserPool,
@@ -25,15 +23,38 @@ from crawlee.crawlers import (
 from playwright.async_api import Page
 
 
+# Camoufox bundles uBlock Origin by default. It blocks Anubis's own challenge
+# script - served from a path generic filter lists flag as tracking, e.g.
+# /.within.website/x/cmd/anubis/... - which strands the browser on the
+# challenge page with "Anubis could not load its JavaScript" instead of ever
+# solving it. Every Camoufox launch below excludes it.
+LAUNCH_OPTIONS: dict[str, Any] = {"exclude_addons": [DefaultAddons.UBO]}
+
 CHALLENGE_TITLE = "Making sure you're not a bot!"
 
+# The title CSFD's anti-bot layer shows when it denies a request outright,
+# without offering a challenge to solve. Unlike the challenge, this isn't
+# something to wait out - the only known recovery is a fresh browser session.
+DENIED_TITLE = "Oh noes!"
 
-async def _wait_out_challenge(page: Page, timeout: float = 60000) -> None:
-    """Wait out the challenge page, if one was shown.
+FETCH_ATTEMPTS = 3
 
-    It computes a hash puzzle client-side (visible on the page as
-    "Calculating... Speed: NkH/s") before redirecting to the real page; a
-    plain page load returns long before that finishes.
+
+class DeniedError(RuntimeError):
+    pass
+
+
+async def _pass_challenge(page: Page, timeout: float = 60000) -> None:
+    """Wait out the challenge page, if one was shown; raise DeniedError if
+    CSFD denied the request outright instead.
+
+    The challenge computes a hash puzzle client-side (visible on the page as
+    "Calculating... Speed: NkH/s"), then reloads into the real page once
+    solved. The title flips the moment that reload's response head is
+    parsed, well before its body has arrived - reading content right then
+    grabs a page with a real title but nothing else. Waiting for that
+    reload's "load" event (not "networkidle": CSFD's pages never go fully
+    quiet, so that wait just times out) fixes it.
     """
     if await page.title() == CHALLENGE_TITLE:
         await page.wait_for_function(
@@ -41,6 +62,10 @@ async def _wait_out_challenge(page: Page, timeout: float = 60000) -> None:
             arg=CHALLENGE_TITLE,
             timeout=timeout,
         )
+        await page.wait_for_load_state("load", timeout=timeout)
+    if await page.title() == DENIED_TITLE:
+        body = await page.inner_text("body")
+        raise DeniedError(body.strip().splitlines()[0] if body.strip() else "denied")
 
 
 class CamoufoxPlugin(PlaywrightBrowserPlugin):
@@ -69,34 +94,40 @@ def get_csfd_crawler(**kwargs: Any) -> PlaywrightCrawler:
     page. Takes the same keyword arguments as PlaywrightCrawler.
     """
     crawler = PlaywrightCrawler(
-        browser_pool=BrowserPool(plugins=[CamoufoxPlugin()]),
+        browser_pool=BrowserPool(
+            plugins=[CamoufoxPlugin(browser_launch_options=LAUNCH_OPTIONS)],
+            # A DeniedError retry needs a genuinely fresh fingerprint, not the
+            # pool's default of reusing a browser for its next 100 pages.
+            retire_browser_after_page_count=1,
+        ),
         **kwargs,
     )
 
     @crawler.post_navigation_hook
     async def _hook(context: PlaywrightPostNavCrawlingContext) -> None:
-        await _wait_out_challenge(context.page)
+        # A DeniedError here fails the request; crawlee retries it (up to
+        # max_request_retries, 3 by default) against a different browser
+        # from the pool, same as fetch_html() retries below.
+        await _pass_challenge(context.page)
 
     return crawler
 
 
-class CsfdPage:
-    """A Camoufox page whose goto() waits out CSFD's challenge before
-    returning, so callers never see a challenge page."""
+async def fetch_html(url: str, **kwargs: Any) -> str:
+    """Fetch a page's HTML via Camoufox, for one-off fetches outside crawlee.
 
-    def __init__(self, page: Page) -> None:
-        self._page = page
-
-    async def goto(self, url: str, **kwargs: Any) -> None:
-        await self._page.goto(url, **kwargs)
-        await _wait_out_challenge(self._page)
-
-    async def content(self) -> str:
-        return await self._page.content()
-
-
-@asynccontextmanager
-async def csfd_page() -> AsyncIterator[CsfdPage]:
-    """A single Camoufox page for one-off fetches outside crawlee."""
-    async with AsyncCamoufox(headless=True) as browser:
-        yield CsfdPage(await browser.new_page())
+    Retries with a fresh browser session (and so a fresh fingerprint) if
+    CSFD denies the request outright rather than offering a challenge to
+    solve, since that isn't recoverable within the same session.
+    """
+    error: DeniedError | None = None
+    for _ in range(FETCH_ATTEMPTS):
+        async with AsyncCamoufox(headless=True, **LAUNCH_OPTIONS) as browser:
+            page = await browser.new_page()
+            await page.goto(url, **kwargs)
+            try:
+                await _pass_challenge(page)
+                return await page.content()
+            except DeniedError as exc:
+                error = exc
+    raise error
