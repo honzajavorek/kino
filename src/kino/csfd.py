@@ -53,8 +53,12 @@ async def _pass_challenge(page: Page, timeout: float = 60000) -> None:
     solved. The title flips the moment that reload's response head is
     parsed, well before its body has arrived - reading content right then
     grabs a page with a real title but nothing else. Waiting for that
-    reload's "load" event (not "networkidle": CSFD's pages never go fully
-    quiet, so that wait just times out) fixes it.
+    reload's "domcontentloaded" fixes it: the DOM (including body) is fully
+    parsed by then. "load" additionally waits for every subresource - ads,
+    trackers, iframes - and on CSFD's heavier pages (e.g. a cinema listing)
+    some of those never finish, so "load" can hang well past the point the
+    content we actually need is already there. "networkidle" is worse
+    still: CSFD's pages never go fully quiet, so that wait just times out.
     """
     if await page.title() == CHALLENGE_TITLE:
         await page.wait_for_function(
@@ -62,7 +66,7 @@ async def _pass_challenge(page: Page, timeout: float = 60000) -> None:
             arg=CHALLENGE_TITLE,
             timeout=timeout,
         )
-        await page.wait_for_load_state("load", timeout=timeout)
+        await page.wait_for_load_state("domcontentloaded", timeout=timeout)
     if await page.title() == DENIED_TITLE:
         body = await page.inner_text("body")
         raise DeniedError(body.strip().splitlines()[0] if body.strip() else "denied")
