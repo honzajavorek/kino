@@ -81,6 +81,14 @@ def get_csfd_crawler(**kwargs: Any) -> PlaywrightCrawler:
     challenge after every navigation, before its request handler sees the
     page. Takes the same keyword arguments as PlaywrightCrawler.
     """
+    # CSFD fills in parts of the page (e.g. the country/genre filter select
+    # boxes) via a follow-up request after the "load" event Playwright's own
+    # default waits for; wait for the network to settle instead, or handlers
+    # see a page that's there but still missing content.
+    kwargs["goto_options"] = {
+        "wait_until": "networkidle",
+        **kwargs.pop("goto_options", {}),
+    }
     crawler = PlaywrightCrawler(
         browser_pool=BrowserPool(plugins=[CamoufoxPlugin()]),
         **kwargs,
@@ -103,6 +111,7 @@ async def fetch_html(url: str, **kwargs: Any) -> str:
     CSFD denies the request outright rather than offering a challenge to
     solve, since that isn't recoverable within the same session.
     """
+    kwargs.setdefault("wait_until", "networkidle")
     error: DeniedError | None = None
     for _ in range(FETCH_ATTEMPTS):
         async with AsyncCamoufox(headless=True) as browser:

@@ -107,5 +107,5 @@ def parse_flags(html: str, codes_mapping: dict[str, str]) -> dict[str, str]:
 
 async def fetch_flags() -> dict[str, str]:
     codes_mapping = build_codes_mapping()
-    html = await fetch_html(FLAGS_URL, wait_until="load", timeout=30000)
+    html = await fetch_html(FLAGS_URL, timeout=30000)
     return parse_flags(html, codes_mapping)
