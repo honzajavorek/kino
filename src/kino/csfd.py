@@ -104,6 +104,12 @@ def get_csfd_crawler(**kwargs: Any) -> PlaywrightCrawler:
     challenge after every navigation, before its request handler sees the
     page. Takes the same keyword arguments as PlaywrightCrawler.
     """
+    # crawlee applies a session's cookies to every page before it navigates,
+    # regardless of which browser serves it - so reusing sessions (not
+    # browsers) is what lets the Anubis cookie skip the challenge on later
+    # pages. setdefault so a caller-supplied session_pool (get_csfd_crawler
+    # takes the same kwargs as PlaywrightCrawler) still wins.
+    kwargs.setdefault("session_pool", SessionPool(max_pool_size=SESSION_POOL_SIZE))
     crawler = PlaywrightCrawler(
         browser_pool=BrowserPool(
             plugins=[CamoufoxPlugin(browser_launch_options=LAUNCH_OPTIONS)],
@@ -111,11 +117,6 @@ def get_csfd_crawler(**kwargs: Any) -> PlaywrightCrawler:
             # pool's default of reusing a browser for its next 100 pages.
             retire_browser_after_page_count=1,
         ),
-        # crawlee applies a session's cookies to every page before it
-        # navigates, regardless of which browser serves it - so reusing
-        # sessions (not browsers) is what lets the Anubis cookie skip the
-        # challenge on later pages.
-        session_pool=SessionPool(max_pool_size=SESSION_POOL_SIZE),
         **kwargs,
     )
 
