@@ -35,6 +35,9 @@ jobs:
       - name: Code
         run: uv run ruff check
 
+      - name: Install Camoufox
+        run: uv run camoufox fetch
+
       - name: Scrape
         run: uv run kino
 

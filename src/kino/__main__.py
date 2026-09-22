@@ -35,7 +35,7 @@ def main(cinemas: list[tuple[Cinema, Path]]):
     for cinema, output_file in cinemas:
         files.setdefault(output_file, []).append(Cinema[cinema])
 
-    flags = fetch_flags()
+    flags = asyncio.run(fetch_flags())
     screenings = asyncio.run(scrape())
 
     for output_file, output_cinemas in files.items():

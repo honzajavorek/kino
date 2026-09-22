@@ -1,11 +1,16 @@
 import gettext
 from typing import cast
 
-import httpx
 import pycountry
 import pycountry.db
 from bs4 import BeautifulSoup
+from camoufox.async_api import AsyncCamoufox
 from flag import flag_safe
+
+from kino.antibot import wait_out_challenge
+
+
+FLAGS_URL = "https://www.csfd.cz/zebricky/vlastni-vyber/"
 
 
 CODES_MAPPING_CUSTOM = {
@@ -99,8 +104,19 @@ def parse_flags(html: str, codes_mapping: dict[str, str]) -> dict[str, str]:
         raise ValueError("No select found")
 
 
-def fetch_flags() -> dict[str, str]:
+async def fetch_flags() -> dict[str, str]:
+    """Fetch the country-to-flag mapping from CSFD via Camoufox.
+
+    A plain HTTP client gets walled by CSFD's anti-bot challenge, which
+    requires solving a JS proof-of-work puzzle; Camoufox is a real,
+    fingerprint-patched Firefox build that actually clears it.
+    """
     codes_mapping = build_codes_mapping()
-    response = httpx.get("https://www.csfd.cz/zebricky/vlastni-vyber/")
-    response.raise_for_status()
-    return parse_flags(response.text, codes_mapping)
+
+    async with AsyncCamoufox(headless=True) as browser:
+        page = await browser.new_page()
+        await page.goto(FLAGS_URL, wait_until="load", timeout=30000)
+        await wait_out_challenge(page)
+        html = await page.content()
+
+    return parse_flags(html, codes_mapping)
