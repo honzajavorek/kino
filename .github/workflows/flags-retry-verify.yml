@@ -1,0 +1,42 @@
+name: flags-retry-verify
+
+# Throwaway: verifies fetch_html()'s retry-on-denial actually recovers, and
+# that a real failure now reports what happened. Delete once confirmed.
+
+on:
+  push:
+    branches: [claude/flags-retry-and-diagnostics]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Tests
+        run: uv run pytest
+
+      - name: Code
+        run: uv run ruff check
+
+      - name: Install Camoufox
+        run: uv run camoufox fetch
+
+      - name: Fetch flags
+        run: |
+          uv run python -c "
+          import asyncio
+          from kino.flags import fetch_flags
+
+          async def main():
+              flags = await fetch_flags()
+              print('Got', len(flags), 'flags')
+              print('USA:', flags.get('USA'))
+
+          asyncio.run(main())
+          "

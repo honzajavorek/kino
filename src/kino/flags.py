@@ -6,7 +6,7 @@ import pycountry.db
 from bs4 import BeautifulSoup
 from flag import flag_safe
 
-from kino.csfd import csfd_page
+from kino.csfd import fetch_html
 
 
 FLAGS_URL = "https://www.csfd.cz/zebricky/vlastni-vyber/"
@@ -100,14 +100,12 @@ def parse_flags(html: str, codes_mapping: dict[str, str]) -> dict[str, str]:
             raise ValueError(f"Missing: {', '.join(missing)}")
         return flags_mapping
     else:
-        raise ValueError("No select found")
+        title = soup.title.string.strip() if soup.title and soup.title.string else None
+        preview = soup.get_text(" ", strip=True)[:300]
+        raise ValueError(f"No select found; page title={title!r}, text={preview!r}")
 
 
 async def fetch_flags() -> dict[str, str]:
     codes_mapping = build_codes_mapping()
-
-    async with csfd_page() as page:
-        await page.goto(FLAGS_URL, wait_until="load", timeout=30000)
-        html = await page.content()
-
+    html = await fetch_html(FLAGS_URL, wait_until="load", timeout=30000)
     return parse_flags(html, codes_mapping)
