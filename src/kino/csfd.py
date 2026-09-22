@@ -1,4 +1,4 @@
-"""CSFD-specific anti-bot handling, kept out of the rest of the codebase.
+"""CSFD's anti-bot challenge, kept out of the rest of the codebase.
 
 CSFD walls plain HTTP clients (and even crawlee's impit-backed HTTP crawler)
 behind a JS proof-of-work challenge. Camoufox - a real, fingerprint-patched
@@ -63,7 +63,7 @@ class CamoufoxPlugin(PlaywrightBrowserPlugin):
         )
 
 
-def get_crawler(**kwargs: Any) -> PlaywrightCrawler:
+def get_csfd_crawler(**kwargs: Any) -> PlaywrightCrawler:
     """A PlaywrightCrawler that runs on Camoufox and waits out CSFD's
     challenge after every navigation, before its request handler sees the
     page. Takes the same keyword arguments as PlaywrightCrawler.
@@ -80,7 +80,7 @@ def get_crawler(**kwargs: Any) -> PlaywrightCrawler:
     return crawler
 
 
-class AntibotPage:
+class CsfdPage:
     """A Camoufox page whose goto() waits out CSFD's challenge before
     returning, so callers never see a challenge page."""
 
@@ -96,7 +96,7 @@ class AntibotPage:
 
 
 @asynccontextmanager
-async def antibot_page() -> AsyncIterator[AntibotPage]:
+async def csfd_page() -> AsyncIterator[CsfdPage]:
     """A single Camoufox page for one-off fetches outside crawlee."""
     async with AsyncCamoufox(headless=True) as browser:
-        yield AntibotPage(await browser.new_page())
+        yield CsfdPage(await browser.new_page())

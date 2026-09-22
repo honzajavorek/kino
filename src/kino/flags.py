@@ -6,7 +6,7 @@ import pycountry.db
 from bs4 import BeautifulSoup
 from flag import flag_safe
 
-from kino.antibot import antibot_page
+from kino.csfd import csfd_page
 
 
 FLAGS_URL = "https://www.csfd.cz/zebricky/vlastni-vyber/"
@@ -106,7 +106,7 @@ def parse_flags(html: str, codes_mapping: dict[str, str]) -> dict[str, str]:
 async def fetch_flags() -> dict[str, str]:
     codes_mapping = build_codes_mapping()
 
-    async with antibot_page() as page:
+    async with csfd_page() as page:
         await page.goto(FLAGS_URL, wait_until="load", timeout=30000)
         html = await page.content()
 

@@ -16,7 +16,7 @@ from crawlee.crawlers import (
 from crawlee.router import Router
 from pydantic import RootModel
 
-from kino.antibot import get_crawler
+from kino.csfd import get_csfd_crawler
 from kino.models import AeroScreening, Cinema, Screening
 
 
@@ -71,7 +71,7 @@ aero_router = Router[BeautifulSoupCrawlingContext]()
 
 
 async def scrape() -> list[Screening | AeroScreening]:
-    csfd_crawler = get_crawler(request_handler=csfd_router)
+    csfd_crawler = get_csfd_crawler(request_handler=csfd_router)
     await csfd_crawler.run([CSFD_URL])
     if errors_count := csfd_crawler.statistics.state.requests_failed:
         raise RuntimeError(f"Failed CSFD requests: {errors_count}")
