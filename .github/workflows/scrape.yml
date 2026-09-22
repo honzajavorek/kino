@@ -29,6 +29,15 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
+      - name: Cache film metadata
+        uses: actions/cache@v4
+        with:
+          path: .cache/csfd_films
+          key: film-cache-${{ github.run_id }}
+          restore-keys: |
+            film-cache-
+          save-always: true
+
       - name: Tests
         run: uv run pytest
 
