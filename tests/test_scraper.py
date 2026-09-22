@@ -1,17 +1,24 @@
-from datetime import datetime
+import asyncio
+from datetime import datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from bs4 import BeautifulSoup
 
+from kino import scraper
 from kino.models import AeroScreening, Cinema, Screening
 from kino.scraper import (
     PRAGUE_TZ,
+    UnexpectedStructureError,
+    build_screening_item,
     csfd_film_id,
     pair,
     parse_aero_csfd_id,
     parse_aero_program,
     parse_country,
+    parse_csfd_timetable,
     parse_duration,
     parse_time_texts,
     parse_year,
@@ -60,6 +67,124 @@ def test_parse_time_texts():
         "17:30",
         "20:00",
     ]
+
+
+def test_parse_csfd_timetable_groups_films_and_times():
+    timetable = parse_csfd_timetable(
+        fixture("csfd_program.html"), "https://www.csfd.cz/kino/1-praha/"
+    )
+
+    assert timetable == {
+        "https://www.csfd.cz/film/111-film/prehled/": [
+            {
+                "cinema": Cinema.AERO,
+                "title": "Film",
+                "starts_at": datetime(2026, 8, 5, 18, 0, tzinfo=PRAGUE_TZ),
+            },
+            {
+                "cinema": Cinema.AERO,
+                "title": "Film",
+                "starts_at": datetime(2026, 8, 5, 20, 30, tzinfo=PRAGUE_TZ),
+            },
+        ],
+        "https://www.csfd.cz/film/222-film/prehled/": [
+            {
+                "cinema": Cinema.AERO,
+                "title": "Další film",
+                "starts_at": datetime(2026, 8, 6, 19, 0, tzinfo=PRAGUE_TZ),
+            }
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    "fragment, message",
+    [
+        ('<div class="updated-box-cinema"></div>', "No heading found"),
+        (
+            '<div class="updated-box-cinema"><div class="updated-box-header"><h2>Praha - Kino Aero</h2></div><div class="box-content-table-cinema"></div></div>',
+            "No day set",
+        ),
+        (
+            '<div class="updated-box-cinema"><div class="updated-box-header"><h2>Praha - Kino Aero</h2></div><div class="update-box-sub-header">5.8.2026</div><div class="box-content-table-cinema"><tr><td class="td-time">18:00</td></tr></div></div>',
+            "No link found",
+        ),
+        (
+            '<div class="updated-box-cinema"><div class="updated-box-header"><h2>Praha - Kino Aero</h2></div><div class="update-box-sub-header">5.8.2026</div><div class="box-content-table-cinema"><tr><a class="film-title-name" href="/film/1/">Film</a></tr></div></div>',
+            "No time found",
+        ),
+    ],
+)
+def test_parse_csfd_timetable_preserves_structure_errors(fragment: str, message: str):
+    soup = BeautifulSoup(f'<div id="snippet--cinemas">{fragment}</div>', "html.parser")
+
+    with pytest.raises(UnexpectedStructureError, match=message):
+        parse_csfd_timetable(soup, "https://www.csfd.cz/kino/1-praha/")
+
+
+def test_build_screening_item_keeps_calendar_fields():
+    starts_at = datetime(2026, 8, 5, 18, 0, tzinfo=PRAGUE_TZ)
+
+    item = build_screening_item(
+        "https://www.csfd.cz/film/111-film/prehled/",
+        {"cinema": Cinema.AERO, "title": "Film", "starts_at": starts_at},
+        {"duration": 120, "rating": 80, "year": 2026, "country": "USA"},
+    )
+
+    assert item == {
+        "film_url": "https://www.csfd.cz/film/111-film/prehled/",
+        "ends_at": starts_at + timedelta(minutes=120),
+        "rating": 80,
+        "year": 2026,
+        "country": "USA",
+        "cinema": Cinema.AERO,
+        "title": "Film",
+        "starts_at": starts_at,
+    }
+
+
+def test_cached_and_fetched_film_produce_identical_screenings(monkeypatch):
+    film_url = "https://www.csfd.cz/film/111-film/prehled/"
+    metadata = {"duration": 120, "rating": 80, "year": 2026, "country": "USA"}
+    cache = SimpleNamespace(
+        get=lambda url: metadata if url == film_url else None,
+        set=Mock(),
+    )
+    monkeypatch.setattr(scraper, "film_cache", cache)
+    cached = SimpleNamespace(
+        page=SimpleNamespace(
+            content=AsyncMock(return_value=(FIXTURES / "csfd_program.html").read_text())
+        ),
+        request=SimpleNamespace(url="https://www.csfd.cz/kino/1-praha/"),
+        push_data=AsyncMock(),
+        add_requests=AsyncMock(),
+        log=SimpleNamespace(info=Mock()),
+    )
+
+    asyncio.run(scraper.default_handler(cached))
+
+    timetable = parse_csfd_timetable(fixture("csfd_program.html"), cached.request.url)
+    fetched = SimpleNamespace(
+        page=SimpleNamespace(
+            content=AsyncMock(
+                return_value='<div class="film-info-content"><div class="origin">USA 2026 120 min</div></div><div class="film-rating-average">80 %</div>'
+            )
+        ),
+        request=SimpleNamespace(
+            url=film_url,
+            user_data=scraper.to_user_data({film_url: timetable[film_url]}),
+        ),
+        push_data=AsyncMock(),
+        log=SimpleNamespace(info=Mock()),
+    )
+
+    asyncio.run(scraper.film_handler(fetched))
+
+    assert [call.args[0] for call in cached.push_data.await_args_list] == [
+        call.args[0] for call in fetched.push_data.await_args_list
+    ]
+    assert len(cached.add_requests.await_args.args[0]) == 1
+    assert cache.set.call_args.args == (film_url, metadata)
 
 
 @pytest.mark.parametrize(
