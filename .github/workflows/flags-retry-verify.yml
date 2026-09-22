@@ -27,16 +27,27 @@ jobs:
       - name: Install Camoufox
         run: uv run camoufox fetch
 
-      - name: Fetch flags
+      - name: Diagnose flags fetch
         run: |
           uv run python -c "
           import asyncio
-          from kino.flags import fetch_flags
+          from camoufox.async_api import AsyncCamoufox
+          from kino.flags import FLAGS_URL
 
           async def main():
-              flags = await fetch_flags()
-              print('Got', len(flags), 'flags')
-              print('USA:', flags.get('USA'))
+              async with AsyncCamoufox(headless=True) as browser:
+                  page = await browser.new_page()
+                  response = await page.goto(FLAGS_URL, wait_until='networkidle', timeout=30000)
+                  print('status:', response.status if response else None)
+                  print('final url:', page.url)
+                  print('headers:', dict(response.headers) if response else None)
+                  print('title:', await page.title())
+                  body_len = len(await page.content())
+                  print('content length:', body_len)
+                  text = await page.inner_text('body')
+                  print('body text (first 500):', text[:500])
+                  select_count = len(await page.query_selector_all('select'))
+                  print('select elements found:', select_count)
 
           asyncio.run(main())
           "
