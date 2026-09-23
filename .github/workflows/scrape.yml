@@ -44,7 +44,9 @@ jobs:
         run: uv run ruff check
 
       - name: Install Camoufox
-        run: uv run camoufox fetch
+        # GITHUB_TOKEN avoids the ~60/hour anonymous GitHub API rate limit
+        # that can make this step silently fail to install anything.
+        run: GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}" uv run camoufox fetch
 
       - name: Scrape
         run: uv run kino
