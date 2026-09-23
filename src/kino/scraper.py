@@ -66,6 +66,21 @@ class TimeTableScreening(TypedDict):
 TimeTableDict = dict[str, list[TimeTableScreening]]
 
 
+class FilmMetadata(TypedDict):
+    duration: int
+    rating: int | None
+    year: int
+    country: str
+
+
+class ScreeningItem(TimeTableScreening):
+    film_url: str
+    ends_at: datetime
+    rating: int | None
+    year: int
+    country: str
+
+
 TimeTable = RootModel[TimeTableDict]
 
 
@@ -129,66 +144,14 @@ def csfd_film_id(url: str) -> str | None:
 
 
 @csfd_router.default_handler
-async def detault_handler(context: PlaywrightCrawlingContext):
+async def default_handler(context: PlaywrightCrawlingContext) -> None:
     soup = BeautifulSoup(await context.page.content(), "html.parser")
-
-    base_url = context.request.url
-    timetable = defaultdict(list)
-    for cinema in soup.select("#snippet--cinemas .updated-box-cinema"):
-        if heading := cinema.select_one(".updated-box-header h2"):
-            cinema_name = heading.text.strip()
-        else:
-            raise UnexpectedStructureError("No heading found")
-        if cinema_name := CINEMAS.get(cinema_name):
-            context.log.info(f"Cinema {cinema_name}")
-            starts_on = None
-            for div in cinema.select(
-                ".update-box-sub-header, .box-content-table-cinema"
-            ):
-                if "update-box-sub-header" in div["class"]:
-                    starts_on = parse_date(div.text)
-                    context.log.info(f"Day {starts_on}")
-                elif starts_on:
-                    for film in div.select("tr"):
-                        if link := film.select_one(".film-title-name"):
-                            title, film_url = parse_link(base_url, link)
-                        else:
-                            raise UnexpectedStructureError("No link found")
-                        if times := film.select_one(".td-time"):
-                            if time_texts := parse_time_texts(times.text):
-                                for time_text in time_texts:
-                                    starts_at = parse_time(starts_on, time_text)
-                                    context.log.info(
-                                        f"Screening {starts_at} {film_url}"
-                                    )
-                                    timetable[film_url].append(
-                                        {
-                                            "cinema": cinema_name,
-                                            "title": title,
-                                            "starts_at": starts_at,
-                                        }
-                                    )
-                            else:
-                                raise UnexpectedStructureError("No time found")
-                        else:
-                            raise UnexpectedStructureError("No time found")
-                else:
-                    raise UnexpectedStructureError("No day set")
+    timetable = parse_csfd_timetable(soup, context.request.url)
     requests = []
     for film_url, screenings in timetable.items():
         if film := film_cache.get(film_url):
             for screening in screenings:
-                await context.push_data(
-                    {
-                        "film_url": film_url,
-                        "ends_at": screening["starts_at"]
-                        + timedelta(minutes=film["duration"]),
-                        "rating": film["rating"],
-                        "year": film["year"],
-                        "country": film["country"],
-                        **screening,
-                    }
-                )
+                await context.push_data(build_screening_item(film_url, screening, film))
         else:
             requests.append(
                 Request.from_url(
@@ -198,6 +161,55 @@ async def detault_handler(context: PlaywrightCrawlingContext):
                 )
             )
     await context.add_requests(requests)
+
+
+def parse_csfd_timetable(soup: Tag, base_url: str) -> TimeTableDict:
+    """Group supported cinemas' screenings by film URL, preserving page order."""
+    timetable: TimeTableDict = defaultdict(list)
+    for cinema in soup.select("#snippet--cinemas .updated-box-cinema"):
+        if heading := cinema.select_one(".updated-box-header h2"):
+            cinema_name = heading.text.strip()
+        else:
+            raise UnexpectedStructureError("No heading found")
+        if not (cinema_name := CINEMAS.get(cinema_name)):
+            continue
+        starts_on = None
+        for div in cinema.select(".update-box-sub-header, .box-content-table-cinema"):
+            if "update-box-sub-header" in div["class"]:
+                starts_on = parse_date(div.text)
+                continue
+            if not starts_on:
+                raise UnexpectedStructureError("No day set")
+            for film in div.select("tr"):
+                if not (link := film.select_one(".film-title-name")):
+                    raise UnexpectedStructureError("No link found")
+                title, film_url = parse_link(base_url, link)
+                times = film.select_one(".td-time")
+                time_texts = parse_time_texts(times.text) if times else []
+                if not time_texts:
+                    raise UnexpectedStructureError("No time found")
+                for time_text in time_texts:
+                    timetable[film_url].append(
+                        {
+                            "cinema": cinema_name,
+                            "title": title,
+                            "starts_at": parse_time(starts_on, time_text),
+                        }
+                    )
+    return timetable
+
+
+def build_screening_item(
+    film_url: str, screening: TimeTableScreening, film: FilmMetadata
+) -> ScreeningItem:
+    return {
+        "film_url": film_url,
+        "ends_at": screening["starts_at"] + timedelta(minutes=film["duration"]),
+        "rating": film["rating"],
+        "year": film["year"],
+        "country": film["country"],
+        **screening,
+    }
 
 
 def parse_link(base_url: str, tag: Tag) -> tuple[str, str]:
@@ -211,7 +223,7 @@ def parse_date(text: str) -> date:
     raise ValueError(f"No date: {text!r}")
 
 
-def parse_time_texts(text: str) -> list:
+def parse_time_texts(text: str) -> list[str]:
     return list(filter(None, map(str.strip, text.split())))
 
 
@@ -224,45 +236,35 @@ def parse_time(starts_on: date, text: str) -> datetime:
 
 
 @csfd_router.handler("film")
-async def film_handler(context: PlaywrightCrawlingContext):
+async def film_handler(context: PlaywrightCrawlingContext) -> None:
     context.log.info(f"Film {context.request.url}")
     soup = BeautifulSoup(await context.page.content(), "html.parser")
 
     timetable = from_user_data(context.request.user_data)
     screenings = timetable[context.request.url]
 
-    if origin := soup.select_one(".film-info-content .origin"):
-        year = parse_year(origin.text)
-        country = parse_country(origin.text)
-    else:
+    if not (origin := soup.select_one(".film-info-content .origin")):
         raise UnexpectedStructureError("No origin found")
-
-    if info := soup.select_one(".film-info-content .origin"):
-        duration = parse_duration(info.text)
-    else:
-        raise UnexpectedStructureError("No info found")
-
     if rating := soup.select_one(".film-rating-average"):
         rating_ptc = parse_rating_ptc(rating.text)
     else:
         rating_ptc = None
 
+    film: FilmMetadata = {
+        "duration": parse_duration(origin.text),
+        "rating": rating_ptc,
+        "year": parse_year(origin.text),
+        "country": parse_country(origin.text),
+    }
     film_cache.set(
         context.request.url,
-        {"duration": duration, "rating": rating_ptc, "year": year, "country": country},
+        film,
         expire=FILM_CACHE_TTL,
     )
 
     for screening in screenings:
         await context.push_data(
-            {
-                "film_url": context.request.url,
-                "ends_at": screening["starts_at"] + timedelta(minutes=duration),
-                "rating": rating_ptc,
-                "year": year,
-                "country": country,
-                **screening,
-            }
+            build_screening_item(context.request.url, screening, film)
         )
 
 
