@@ -149,8 +149,6 @@ async def default_handler(context: PlaywrightCrawlingContext) -> None:
     timetable = parse_csfd_timetable(soup, context.request.url)
     requests = []
     for film_url, screenings in timetable.items():
-        for screening in screenings:
-            context.log.info(f"Screening {screening['starts_at']} {film_url}")
         if film := film_cache.get(film_url):
             for screening in screenings:
                 await context.push_data(build_screening_item(film_url, screening, film))
