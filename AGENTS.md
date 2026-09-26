@@ -6,7 +6,7 @@
 - Keep crawling, caching, and file writing at the edges; put HTML parsing, screening decisions, and calendar data preparation in small, typed functions.
 - Use Python type hints, keep branching shallow, and arrange functions from entry points to smaller helpers where practical.
 - Follow the project's existing async code and tools: `uv`, `click`, Crawlee, and Ruff. Keep imports at module level and avoid `TYPE_CHECKING` blocks.
-- Preserve cinema selection, Prague time zone handling, film and Aero pairing, event contents, and output files. The Camoufox/CSFD challenge handling has deliberate waits, retries, and session settings; read its comments before simplifying it.
+- Preserve cinema selection, Prague time zone handling, film and Aero pairing, event contents, and output files. CSFD is fetched as TelegramBot to get past its anti-bot challenge; read the comments in `csfd.py` before changing it.
 - Keep logs useful without exposing credentials or other secrets.
 
 ## Tests and verification

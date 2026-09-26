@@ -152,9 +152,7 @@ def test_cached_and_fetched_film_produce_identical_screenings(monkeypatch):
     )
     monkeypatch.setattr(scraper, "film_cache", cache)
     cached = SimpleNamespace(
-        page=SimpleNamespace(
-            content=AsyncMock(return_value=(FIXTURES / "csfd_program.html").read_text())
-        ),
+        soup=fixture("csfd_program.html"),
         request=SimpleNamespace(url="https://www.csfd.cz/kino/1-praha/"),
         push_data=AsyncMock(),
         add_requests=AsyncMock(),
@@ -165,10 +163,9 @@ def test_cached_and_fetched_film_produce_identical_screenings(monkeypatch):
 
     timetable = parse_csfd_timetable(fixture("csfd_program.html"), cached.request.url)
     fetched = SimpleNamespace(
-        page=SimpleNamespace(
-            content=AsyncMock(
-                return_value='<div class="film-info-content"><div class="origin">USA 2026 120 min</div></div><div class="film-rating-average">80 %</div>'
-            )
+        soup=BeautifulSoup(
+            '<div class="film-info-content"><div class="origin">USA 2026 120 min</div></div><div class="film-rating-average">80 %</div>',
+            "html.parser",
         ),
         request=SimpleNamespace(
             url=film_url,
