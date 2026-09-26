@@ -110,6 +110,12 @@ def get_csfd_crawler(**kwargs: Any) -> PlaywrightCrawler:
     # pages. setdefault so a caller-supplied session_pool (get_csfd_crawler
     # takes the same kwargs as PlaywrightCrawler) still wins.
     kwargs.setdefault("session_pool", SessionPool(max_pool_size=SESSION_POOL_SIZE))
+    # Playwright's own default wait_until ("load") waits for every
+    # subresource, same as the "load" the _pass_challenge docstring warns
+    # against for the post-challenge reload - and it can hang the initial
+    # navigation itself the same way, well past the point a page's real
+    # content (server-rendered, not JS-built) has already arrived.
+    kwargs.setdefault("goto_options", {"wait_until": "domcontentloaded"})
     crawler = PlaywrightCrawler(
         browser_pool=BrowserPool(
             plugins=[CamoufoxPlugin(browser_launch_options=LAUNCH_OPTIONS)],

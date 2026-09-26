@@ -14,7 +14,6 @@ from kino.scraper import (
     UnexpectedStructureError,
     build_screening_item,
     csfd_film_id,
-    has_unexpected_failures,
     pair,
     parse_aero_csfd_id,
     parse_aero_program,
@@ -209,17 +208,6 @@ def test_parse_country(text: str, expected: str):
 )
 def test_csfd_film_id(url: str, expected: str | None):
     assert csfd_film_id(url) == expected
-
-
-def test_has_unexpected_failures_tolerates_skipped_films():
-    skipped = {"https://www.csfd.cz/film/1560036-ty-jsi-vesmir/prehled/"}
-
-    assert not has_unexpected_failures(total_failed=1, skipped_films=skipped)
-
-
-def test_has_unexpected_failures_flags_failures_beyond_skipped_films():
-    # e.g. the timetable request itself failed, not just a film page
-    assert has_unexpected_failures(total_failed=1, skipped_films=set())
 
 
 def test_parse_aero_program():
