@@ -1,4 +1,5 @@
 import gettext
+from datetime import timedelta
 from typing import cast
 
 import pycountry
@@ -107,5 +108,5 @@ def parse_flags(html: str, codes_mapping: dict[str, str]) -> dict[str, str]:
 
 async def fetch_flags() -> dict[str, str]:
     codes_mapping = build_codes_mapping()
-    html = await fetch_html(FLAGS_URL, timeout=30000)
+    html = await fetch_html(FLAGS_URL, timeout=timedelta(seconds=30))
     return parse_flags(html, codes_mapping)

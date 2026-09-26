@@ -6,13 +6,9 @@ from typing import Any, TypedDict
 from urllib.parse import urlencode, urljoin
 from zoneinfo import ZoneInfo
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import Tag
 from crawlee import Request
-from crawlee.crawlers import (
-    BeautifulSoupCrawler,
-    BeautifulSoupCrawlingContext,
-    PlaywrightCrawlingContext,
-)
+from crawlee.crawlers import BeautifulSoupCrawler, BeautifulSoupCrawlingContext
 from crawlee.router import Router
 from diskcache import Cache
 from pydantic import RootModel
@@ -84,7 +80,7 @@ class ScreeningItem(TimeTableScreening):
 TimeTable = RootModel[TimeTableDict]
 
 
-csfd_router = Router[PlaywrightCrawlingContext]()
+csfd_router = Router[BeautifulSoupCrawlingContext]()
 
 aero_router = Router[BeautifulSoupCrawlingContext]()
 
@@ -144,9 +140,8 @@ def csfd_film_id(url: str) -> str | None:
 
 
 @csfd_router.default_handler
-async def default_handler(context: PlaywrightCrawlingContext) -> None:
-    soup = BeautifulSoup(await context.page.content(), "html.parser")
-    timetable = parse_csfd_timetable(soup, context.request.url)
+async def default_handler(context: BeautifulSoupCrawlingContext) -> None:
+    timetable = parse_csfd_timetable(context.soup, context.request.url)
     requests = []
     for film_url, screenings in timetable.items():
         if film := film_cache.get(film_url):
@@ -236,9 +231,9 @@ def parse_time(starts_on: date, text: str) -> datetime:
 
 
 @csfd_router.handler("film")
-async def film_handler(context: PlaywrightCrawlingContext) -> None:
+async def film_handler(context: BeautifulSoupCrawlingContext) -> None:
     context.log.info(f"Film {context.request.url}")
-    soup = BeautifulSoup(await context.page.content(), "html.parser")
+    soup = context.soup
 
     timetable = from_user_data(context.request.user_data)
     screenings = timetable[context.request.url]
