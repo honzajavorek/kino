@@ -91,8 +91,25 @@ aero_router = Router[BeautifulSoupCrawlingContext]()
 
 async def scrape() -> list[Screening | AeroScreening]:
     csfd_crawler = get_csfd_crawler(request_handler=csfd_router)
+    skipped_films: set[str] = set()
+
+    @csfd_crawler.failed_request_handler
+    async def _skip_failed_film(
+        context: PlaywrightCrawlingContext, error: Exception
+    ) -> None:
+        # A single film page (e.g. a slow subresource on CSFD's side)
+        # shouldn't fail the whole scrape; skip just its screenings for
+        # this run instead. Anything else (the timetable request itself)
+        # still counts as unexpected and fails the run below.
+        if context.request.label == "film":
+            context.log.warning(
+                f"Skipping film after repeated failures: {context.request.url}"
+            )
+            skipped_films.add(context.request.url)
+
     await csfd_crawler.run([CSFD_URL])
-    if errors_count := csfd_crawler.statistics.state.requests_failed:
+    errors_count = csfd_crawler.statistics.state.requests_failed
+    if has_unexpected_failures(errors_count, skipped_films):
         raise RuntimeError(f"Failed CSFD requests: {errors_count}")
 
     aero_crawler = BeautifulSoupCrawler(request_handler=aero_router)
@@ -134,6 +151,13 @@ def pair(
         if (item["csfd_id"], screening.starts_at) not in known:
             screenings.append(screening)
     return screenings
+
+
+def has_unexpected_failures(total_failed: int, skipped_films: set[str]) -> bool:
+    """A film page that failed and was skipped is tolerated; any other
+    failure (e.g. the timetable request itself) is not.
+    """
+    return total_failed > len(skipped_films)
 
 
 def csfd_film_id(url: str) -> str | None:
