@@ -30,7 +30,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
 
       - name: Restore film cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: .cache/csfd_films
           key: film-cache-${{ github.run_id }}
@@ -48,7 +48,7 @@ jobs:
 
       - name: Save film cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: .cache/csfd_films
           key: film-cache-${{ github.run_id }}
