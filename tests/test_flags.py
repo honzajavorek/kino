@@ -21,6 +21,22 @@ def test_parse_flags_finds_country_select():
     assert "-všechny-" not in flags_mapping
 
 
+def test_parse_flags_maps_mandatni_palestina():
+    # CSFD added this historical label to its country dropdown; pycountry
+    # doesn't know it, so it must be covered by CODES_MAPPING_CUSTOM
+    html = """
+        <select name="country_id">
+            <option value="">-všechny-</option>
+            <option value="9999">Mandátní Palestina</option>
+        </select>
+    """
+    codes_mapping = build_codes_mapping()
+
+    flags_mapping = parse_flags(html, codes_mapping)
+
+    assert flags_mapping == {"Mandátní Palestina": "🇵🇸"}
+
+
 def test_parse_flags_normalizes_whitespace():
     # CSFD could reformat its markup and pad option labels with whitespace;
     # that must not turn known countries into misses

@@ -33,6 +33,7 @@ CODES_MAPPING_CUSTOM = {
     "Kréta": "GR",
     "Maďarské království": "HU",
     "Makedonie": "MK",
+    "Mandátní Palestina": "PS",
     "Německá říše": "DE",
     "Německý spolek": "DE",
     "Nezávislý stát Chorvatsko": "HR",
