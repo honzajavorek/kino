@@ -22,8 +22,8 @@ def test_parse_flags_finds_country_select():
 
 
 def test_parse_flags_normalizes_whitespace():
-    # CSFD could reformat its markup and pad option labels with whitespace;
-    # that must not turn known countries into misses
+    """CSFD could reformat its markup and pad option labels with whitespace;
+    that must not turn known countries into misses."""
     html = """
         <select name="country_id">
             <option value="">-všechny-</option>

@@ -23,7 +23,7 @@ def test_raise_if_challenge_passes_real_pages(fixture):
 
 
 def test_csfd_crawler_sends_telegram_user_agent():
-    # CSFD's anti-bot layer lets Telegram's link-preview crawler through.
+    """CSFD's anti-bot layer lets Telegram's link-preview crawler through."""
     crawler = get_csfd_crawler()
 
     headers = crawler._http_client._async_client_kwargs["headers"]

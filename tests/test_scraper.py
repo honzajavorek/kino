@@ -284,7 +284,7 @@ def test_pair_keeps_base_when_already_present():
 
 
 def test_pair_adds_screening_missing_from_base():
-    # Same film (CSFD id 111) but a screening time the base doesn't have.
+    """Same film (CSFD id 111) but a screening time the base doesn't have."""
     aero = aero_item(csfd_id="111", starts_at="2026-08-07T18:00:00+02:00")
 
     result = pair([screening()], [aero])
@@ -295,7 +295,7 @@ def test_pair_adds_screening_missing_from_base():
 
 @pytest.mark.parametrize("emoji", ["😎", "✈️"])
 def test_pair_keeps_aero_emoji(emoji: str):
-    # Screenings without a CSFD link are always added, keeping their emoji.
+    """Screenings without a CSFD link are always added, keeping their emoji."""
     result = pair([], [aero_item(csfd_id=None, emoji=emoji)])
 
     assert result == [
@@ -311,7 +311,7 @@ def test_pair_keeps_aero_emoji(emoji: str):
 
 
 def test_pair_tolerates_a_minute_offset():
-    # Aero lists a film starting a double feature a minute after the event.
+    """Aero lists a film starting a double feature a minute after the event."""
     aero = aero_item(csfd_id="111", starts_at="2026-08-06T18:01:00+02:00")
 
     assert pair([screening()], [aero]) == [screening()]
