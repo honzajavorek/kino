@@ -8,13 +8,13 @@ license = {text = "AGPL-3.0-only"}
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "click>=8.5.0",
-    "crawlee[beautifulsoup]>=1.10.3",
+    "crawlee[beautifulsoup]>=1.10.4",
     "diskcache>=5.6.3",
     "emoji-country-flag>=2.1.0",
     "ics>=0.7.3",
     "impit>=0.14.1",
     "pycountry>=26.2.16",
-    "pydantic>=2.13.5",
+    "pydantic>=2.14.0",
     "tatsu==5.13.2", # ics 0.7.2 breaks with tatsu >5.13.2 during import
 ]
 
@@ -22,7 +22,7 @@ dependencies = [
 dev = [
     "pytest>=9.1.1",
     "pytest-ruff>=0.5",
-    "ruff>=0.16.9",
+    "ruff>=0.16.10",
 ]
 
 [project.urls]
@@ -47,5 +47,5 @@ combine-as-imports = true
 lines-after-imports = 2
 
 [build-system]
-requires = ["uv_build>=0.12.21,<0.13.0"]
+requires = ["uv_build>=0.12.23,<0.13.0"]
 build-backend = "uv_build"
