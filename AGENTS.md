@@ -14,4 +14,5 @@
 - For behavior changes, work red-green: write a failing focused test first, then make it pass.
 - Favor fast tests of pure parsers and transformations, with fewer tests around crawler and file boundaries. Keep default tests independent of network and current time. Save representative remote HTML as fixtures and add edge-case fixtures when needed.
 - Use parametrized tests for related cases; give tests descriptive names and focused assertions.
+- Describe a whole test in its docstring, not in a comment.
 - Run `uv run pytest` after Python changes; this project's pytest configuration also runs Ruff lint and format checks.
