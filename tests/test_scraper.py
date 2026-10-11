@@ -14,6 +14,7 @@ from kino.scraper import (
     UnexpectedStructureError,
     build_screening_item,
     csfd_film_id,
+    missing_from_csfd,
     pair,
     parse_aero_csfd_id,
     parse_aero_program,
@@ -307,3 +308,36 @@ def test_pair_keeps_aero_emoji(emoji: str):
             emoji=emoji,
         )
     ]
+
+
+def test_pair_tolerates_a_minute_offset():
+    # Aero lists films inside a double feature a minute after the event itself.
+    aero = aero_item(csfd_id="111", starts_at="2026-08-06T18:01:00+02:00")
+
+    assert pair([screening()], [aero]) == [screening()]
+
+
+def test_missing_from_csfd_groups_unpaired_aero_screenings_by_csfd_film():
+    aero = [
+        aero_item(csfd_id="111", starts_at="2026-08-06T18:00:00+02:00"),
+        aero_item(csfd_id="111", starts_at="2026-08-07T18:00:00+02:00"),
+        aero_item(csfd_id="222", title="Other", starts_at="2026-08-08T20:30:00+02:00"),
+        aero_item(csfd_id=None, starts_at="2026-08-09T18:00:00+02:00"),
+    ]
+
+    assert missing_from_csfd([screening()], aero) == {
+        "https://www.csfd.cz/film/111/prehled/": [
+            {
+                "cinema": Cinema.AERO,
+                "title": "Film",
+                "starts_at": datetime(2026, 8, 7, 18, 0, tzinfo=PRAGUE_TZ),
+            }
+        ],
+        "https://www.csfd.cz/film/222/prehled/": [
+            {
+                "cinema": Cinema.AERO,
+                "title": "Other",
+                "starts_at": datetime(2026, 8, 8, 20, 30, tzinfo=PRAGUE_TZ),
+            }
+        ],
+    }

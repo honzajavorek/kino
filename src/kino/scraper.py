@@ -10,6 +10,7 @@ from bs4 import Tag
 from crawlee import Request
 from crawlee.crawlers import BeautifulSoupCrawler, BeautifulSoupCrawlingContext
 from crawlee.router import Router
+from crawlee.storages import Dataset
 from diskcache import Cache
 from pydantic import RootModel
 
@@ -29,6 +30,8 @@ FILM_CACHE_TTL = 60 * 60 * 24 * 30 * 6
 film_cache = Cache(".cache/csfd_films")
 
 CSFD_FILM_ID_RE = re.compile(r"/film/(\d+)")
+
+PAIRING_TOLERANCE = timedelta(minutes=5)
 
 CINEMAS = {
     "Praha - Cinema City Flora": Cinema.FLORA,
@@ -98,6 +101,24 @@ async def scrape() -> list[Screening | AeroScreening]:
 
     # both crawlers push into the same default dataset
     dataset = await csfd_crawler.get_dataset()
+    base, aero = await read_dataset(dataset)
+
+    # CSFD's program lags behind Aero's, so look up the films it doesn't list yet
+    if timetable := missing_from_csfd(base, aero):
+        items, requests = split_cached(timetable)
+        await dataset.push_data(items)
+        await csfd_crawler.run(requests)
+        if errors_count := csfd_crawler.statistics.state.requests_failed:
+            raise RuntimeError(f"Failed CSFD requests: {errors_count}")
+        base, aero = await read_dataset(dataset)
+
+    return pair(base, aero)
+
+
+async def read_dataset(
+    dataset: Dataset,
+) -> tuple[list[Screening], list[dict[str, Any]]]:
+    """Split dataset items into CSFD screenings and Aero items."""
     base: list[Screening] = []
     aero: list[dict[str, Any]] = []
     async for item in dataset.iterate_items():
@@ -105,7 +126,7 @@ async def scrape() -> list[Screening | AeroScreening]:
             base.append(Screening(**item))
         else:
             aero.append(item)
-    return pair(base, aero)
+    return base, aero
 
 
 def pair(
@@ -113,23 +134,61 @@ def pair(
 ) -> list[Screening | AeroScreening]:
     """Merge Aero screenings into the CSFD base.
 
-    Screenings already in the base (the same CSFD film at the same time) are
-    kept as they are; the rest are added as generic Aero screenings.
+    Screenings already in the base (the same CSFD film at about the same time)
+    are kept as they are; the rest are added as generic Aero screenings.
     """
-    known = {(csfd_film_id(s.film_url), s.starts_at) for s in base}
     screenings: list[Screening | AeroScreening] = list(base)
-    for item in aero:
-        screening = AeroScreening(
-            cinema=Cinema.AERO,
-            title=item["title"],
-            screening_url=item["screening_url"],
-            starts_at=item["starts_at"],
-            ends_at=item["ends_at"],
-            emoji=item["emoji"],
+    for item in unpaired(base, aero):
+        screenings.append(
+            AeroScreening(
+                cinema=Cinema.AERO,
+                title=item["title"],
+                screening_url=item["screening_url"],
+                starts_at=item["starts_at"],
+                ends_at=item["ends_at"],
+                emoji=item["emoji"],
+            )
         )
-        if (item["csfd_id"], screening.starts_at) not in known:
-            screenings.append(screening)
     return screenings
+
+
+def missing_from_csfd(
+    base: list[Screening], aero: list[dict[str, Any]]
+) -> TimeTableDict:
+    """Group Aero screenings which link to CSFD, but aren't in the base, by
+    their CSFD film URL."""
+    timetable: TimeTableDict = defaultdict(list)
+    for item in unpaired(base, aero):
+        if item["csfd_id"]:
+            film_url = f"https://www.csfd.cz/film/{item['csfd_id']}/prehled/"
+            timetable[film_url].append(
+                {
+                    "cinema": Cinema.AERO,
+                    "title": item["title"],
+                    "starts_at": to_datetime(item["starts_at"]),
+                }
+            )
+    return dict(timetable)
+
+
+def unpaired(base: list[Screening], aero: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return Aero items without the same CSFD film at about the same time in
+    the base. Aero lists films inside a double feature a minute after the
+    event itself, hence the tolerance."""
+    known = [(csfd_film_id(s.film_url), s.starts_at) for s in base]
+    return [
+        item
+        for item in aero
+        if not any(
+            csfd_id == item["csfd_id"]
+            and abs(starts_at - to_datetime(item["starts_at"])) <= PAIRING_TOLERANCE
+            for csfd_id, starts_at in known
+        )
+    ]
+
+
+def to_datetime(value: str | datetime) -> datetime:
+    return value if isinstance(value, datetime) else datetime.fromisoformat(value)
 
 
 def csfd_film_id(url: str) -> str | None:
@@ -142,11 +201,20 @@ def csfd_film_id(url: str) -> str | None:
 @csfd_router.default_handler
 async def default_handler(context: BeautifulSoupCrawlingContext) -> None:
     timetable = parse_csfd_timetable(context.soup, context.request.url)
-    requests = []
+    items, requests = split_cached(timetable)
+    for item in items:
+        await context.push_data(item)
+    await context.add_requests(requests)
+
+
+def split_cached(timetable: TimeTableDict) -> tuple[list[ScreeningItem], list[Request]]:
+    """Build screening items for cached films and requests for the rest."""
+    items: list[ScreeningItem] = []
+    requests: list[Request] = []
     for film_url, screenings in timetable.items():
         if film := film_cache.get(film_url):
             for screening in screenings:
-                await context.push_data(build_screening_item(film_url, screening, film))
+                items.append(build_screening_item(film_url, screening, film))
         else:
             requests.append(
                 Request.from_url(
@@ -155,7 +223,7 @@ async def default_handler(context: BeautifulSoupCrawlingContext) -> None:
                     label="film",
                 )
             )
-    await context.add_requests(requests)
+    return items, requests
 
 
 def parse_csfd_timetable(soup: Tag, base_url: str) -> TimeTableDict:
