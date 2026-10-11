@@ -311,7 +311,7 @@ def test_pair_keeps_aero_emoji(emoji: str):
 
 
 def test_pair_tolerates_a_minute_offset():
-    # Aero lists films inside a double feature a minute after the event itself.
+    # Aero lists a film starting a double feature a minute after the event.
     aero = aero_item(csfd_id="111", starts_at="2026-08-06T18:01:00+02:00")
 
     assert pair([screening()], [aero]) == [screening()]

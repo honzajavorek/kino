@@ -173,8 +173,9 @@ def missing_from_csfd(
 
 def unpaired(base: list[Screening], aero: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return Aero items without the same CSFD film at about the same time in
-    the base. Aero lists films inside a double feature a minute after the
-    event itself, hence the tolerance."""
+    the base. Aero sells tickets to double or triple features as a whole and
+    to each film separately, listing a film that starts with the event a
+    minute later, hence the tolerance."""
     known = [(csfd_film_id(s.film_url), s.starts_at) for s in base]
     return [
         item
