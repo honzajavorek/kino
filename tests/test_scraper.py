@@ -21,8 +21,10 @@ from kino.scraper import (
     parse_country,
     parse_csfd_timetable,
     parse_duration,
+    parse_genres,
     parse_time_texts,
     parse_year,
+    split_cached,
 )
 
 
@@ -129,7 +131,13 @@ def test_build_screening_item_keeps_calendar_fields():
     item = build_screening_item(
         "https://www.csfd.cz/film/111-film/prehled/",
         {"cinema": Cinema.AERO, "title": "Film", "starts_at": starts_at},
-        {"duration": 120, "rating": 80, "year": 2026, "country": "USA"},
+        {
+            "duration": 120,
+            "rating": 80,
+            "year": 2026,
+            "country": "USA",
+            "genres": ["Drama"],
+        },
     )
 
     assert item == {
@@ -138,6 +146,7 @@ def test_build_screening_item_keeps_calendar_fields():
         "rating": 80,
         "year": 2026,
         "country": "USA",
+        "genres": ["Drama"],
         "cinema": Cinema.AERO,
         "title": "Film",
         "starts_at": starts_at,
@@ -146,7 +155,13 @@ def test_build_screening_item_keeps_calendar_fields():
 
 def test_cached_and_fetched_film_produce_identical_screenings(monkeypatch):
     film_url = "https://www.csfd.cz/film/111-film/prehled/"
-    metadata = {"duration": 120, "rating": 80, "year": 2026, "country": "USA"}
+    metadata = {
+        "duration": 120,
+        "rating": 80,
+        "year": 2026,
+        "country": "USA",
+        "genres": ["Drama", "Komedie"],
+    }
     cache = SimpleNamespace(
         get=lambda url: metadata if url == film_url else None,
         set=Mock(),
@@ -165,7 +180,7 @@ def test_cached_and_fetched_film_produce_identical_screenings(monkeypatch):
     timetable = parse_csfd_timetable(fixture("csfd_program.html"), cached.request.url)
     fetched = SimpleNamespace(
         soup=BeautifulSoup(
-            '<div class="film-info-content"><div class="origin">USA 2026 120 min</div></div><div class="film-rating-average">80 %</div>',
+            '<div class="film-info-content"><div class="genres">Drama <span class="bullet"></span> Komedie</div><div class="origin">USA 2026 120 min</div></div><div class="film-rating-average">80 %</div>',
             "html.parser",
         ),
         request=SimpleNamespace(
@@ -183,6 +198,36 @@ def test_cached_and_fetched_film_produce_identical_screenings(monkeypatch):
     ]
     assert len(cached.add_requests.await_args.args[0]) == 1
     assert cache.set.call_args.args == (film_url, metadata)
+
+
+def test_parse_genres():
+    assert parse_genres(fixture("csfd_film.html")) == [
+        "Animovaný",
+        "Rodinný",
+        "Komedie",
+    ]
+
+
+def test_parse_genres_missing():
+    """Some films on CSFD have no genres listed at all."""
+    soup = BeautifulSoup('<div class="film-info-content"></div>', "html.parser")
+
+    assert parse_genres(soup) == []
+
+
+def test_split_cached_refetches_films_cached_without_genres(monkeypatch):
+    """Films cached before genres were scraped get fetched again."""
+    film_url = "https://www.csfd.cz/film/111-film/prehled/"
+    metadata = {"duration": 120, "rating": 80, "year": 2026, "country": "USA"}
+    monkeypatch.setattr(scraper, "film_cache", {film_url: metadata})
+    starts_at = datetime(2026, 8, 5, 18, 0, tzinfo=PRAGUE_TZ)
+
+    items, requests = split_cached(
+        {film_url: [{"cinema": Cinema.AERO, "title": "Film", "starts_at": starts_at}]}
+    )
+
+    assert items == []
+    assert [request.url for request in requests] == [film_url]
 
 
 @pytest.mark.parametrize(
@@ -257,6 +302,7 @@ def screening(**kwargs) -> Screening:
             "starts_at": datetime(2026, 8, 6, 18, 0, tzinfo=PRAGUE_TZ),
             "ends_at": datetime(2026, 8, 6, 20, 0, tzinfo=PRAGUE_TZ),
             "rating": 80,
+            "genres": [],
             **kwargs,
         }
     )
