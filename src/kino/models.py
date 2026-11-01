@@ -81,10 +81,10 @@ def rating_to_emoji(rating: int) -> str:
 
 def is_workday_screening(starts_at: datetime, ends_at: datetime) -> bool:
     """Tells whether a screening fits a Czech working day, i.e. it's not on
-    a weekend nor a public holiday, and it ends before WORKDAY_ENDS_AT."""
+    a weekend nor a public holiday, and it ends by WORKDAY_ENDS_AT."""
     day = starts_at.date()
     if day.weekday() >= 5:
         return False
     if day in {holiday.date for holiday in czech_holidays(day.year)}:
         return False
-    return ends_at.date() == day and ends_at.time() < WORKDAY_ENDS_AT
+    return ends_at.date() == day and ends_at.time() <= WORKDAY_ENDS_AT

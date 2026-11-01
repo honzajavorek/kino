@@ -28,7 +28,8 @@ def test_rating_to_emoji(rating: int, expected: str):
     [
         (datetime(2026, 11, 2, 10, 0), datetime(2026, 11, 2, 12, 0), True),
         (datetime(2026, 11, 2, 13, 30), datetime(2026, 11, 2, 15, 29), True),
-        (datetime(2026, 11, 2, 13, 30), datetime(2026, 11, 2, 15, 30), False),
+        (datetime(2026, 11, 2, 13, 30), datetime(2026, 11, 2, 15, 30), True),
+        (datetime(2026, 11, 2, 13, 30), datetime(2026, 11, 2, 15, 31), False),
         (datetime(2026, 11, 2, 14, 0), datetime(2026, 11, 2, 16, 0), False),
         (datetime(2026, 11, 7, 10, 0), datetime(2026, 11, 7, 12, 0), False),
         (datetime(2026, 11, 8, 10, 0), datetime(2026, 11, 8, 12, 0), False),
@@ -37,7 +38,7 @@ def test_rating_to_emoji(rating: int, expected: str):
     ],
 )
 def test_is_workday_screening(starts_at: datetime, ends_at: datetime, expected: bool):
-    """Only screenings on Czech working days which end before 15:30 qualify;
+    """Only screenings on Czech working days which end by 15:30 qualify;
     weekends (7th, 8th Nov) and public holidays (17th Nov, 24th Dec) don't."""
     tz = ZoneInfo("Europe/Prague")
     assert (
