@@ -1,8 +1,12 @@
-from datetime import datetime
+from datetime import datetime, time
 from enum import StrEnum
 
+from czech_holidays import czech_holidays
 from ics import Event
 from pydantic import BaseModel
+
+
+WORKDAY_ENDS_AT = time(15, 30)
 
 
 class Cinema(StrEnum):
@@ -73,3 +77,14 @@ def rating_to_emoji(rating: int) -> str:
     if rating < 90:
         return "🔴"
     return "🟡"
+
+
+def is_workday_screening(starts_at: datetime, ends_at: datetime) -> bool:
+    """Tells whether a screening fits a Czech working day, i.e. it's not on
+    a weekend nor a public holiday, and it ends before WORKDAY_ENDS_AT."""
+    day = starts_at.date()
+    if day.weekday() >= 5:
+        return False
+    if day in {holiday.date for holiday in czech_holidays(day.year)}:
+        return False
+    return ends_at.date() == day and ends_at.time() < WORKDAY_ENDS_AT
