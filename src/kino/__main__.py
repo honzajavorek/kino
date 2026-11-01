@@ -34,7 +34,7 @@ from kino.scraper import scrape
     "--workday",
     "workday_file",
     default="kino-workday.ics",
-    help="Output file for screenings of all the cinemas on workdays ending by 15:30, except family films",
+    help="Output file for screenings of all the cinemas on workdays ending by 15:45, except family films",
     type=click.Path(path_type=Path, dir_okay=False),
 )
 def main(cinemas: list[tuple[Cinema, Path]], workday_file: Path):

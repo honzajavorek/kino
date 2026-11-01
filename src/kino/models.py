@@ -6,7 +6,7 @@ from ics import Event
 from pydantic import BaseModel
 
 
-WORKDAY_ENDS_AT = time(15, 30)
+WORKDAY_ENDS_AT = time(15, 45)
 
 
 class Cinema(StrEnum):
