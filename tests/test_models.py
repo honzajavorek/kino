@@ -3,7 +3,14 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from kino.models import is_workday_screening, rating_to_emoji
+from kino.models import (
+    AeroScreening,
+    Cinema,
+    Screening,
+    is_family_film,
+    is_workday_screening,
+    rating_to_emoji,
+)
 
 
 @pytest.mark.parametrize(
@@ -45,3 +52,45 @@ def test_is_workday_screening(starts_at: datetime, ends_at: datetime, expected: 
         is_workday_screening(starts_at.replace(tzinfo=tz), ends_at.replace(tzinfo=tz))
         is expected
     )
+
+
+@pytest.mark.parametrize(
+    "genres, expected",
+    [
+        (["Animovaný", "Rodinný", "Komedie"], True),
+        (["Animovaný", "Drama", "Fantasy", "Horor"], False),
+        (["Drama"], False),
+        ([], False),
+    ],
+)
+def test_is_family_film(genres: list[str], expected: bool):
+    """Films are considered family films by the CSFD genre Rodinný."""
+    starts_at = datetime(2026, 11, 2, 10, 0, tzinfo=ZoneInfo("Europe/Prague"))
+    screening = Screening(
+        cinema=Cinema.FLORA,
+        title="Film",
+        film_url="https://www.csfd.cz/film/111-film/prehled/",
+        year=2026,
+        country="USA",
+        starts_at=starts_at,
+        ends_at=starts_at,
+        rating=None,
+        genres=genres,
+    )
+
+    assert is_family_film(screening) is expected
+
+
+def test_is_family_film_aero_screening():
+    """Aero screenings without CSFD data have no genres to tell by."""
+    starts_at = datetime(2026, 11, 2, 10, 0, tzinfo=ZoneInfo("Europe/Prague"))
+    screening = AeroScreening(
+        cinema=Cinema.AERO,
+        title="Film",
+        screening_url="https://kinoaero.cz/?projection=1",
+        starts_at=starts_at,
+        ends_at=starts_at,
+        emoji="✈️",
+    )
+
+    assert is_family_film(screening) is False

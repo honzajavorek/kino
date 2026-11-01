@@ -5,7 +5,7 @@ import click
 from ics import Calendar, Event
 
 from kino.flags import fetch_flags
-from kino.models import Cinema, is_workday_screening
+from kino.models import Cinema, is_family_film, is_workday_screening
 from kino.scraper import scrape
 
 
@@ -34,7 +34,7 @@ from kino.scraper import scrape
     "--workday",
     "workday_file",
     default="kino-workday.ics",
-    help="Output file for screenings of all the cinemas on workdays ending by 15:30",
+    help="Output file for screenings of all the cinemas on workdays ending by 15:30, except family films",
     type=click.Path(path_type=Path, dir_okay=False),
 )
 def main(cinemas: list[tuple[Cinema, Path]], workday_file: Path):
@@ -65,6 +65,7 @@ def main(cinemas: list[tuple[Cinema, Path]], workday_file: Path):
             for screening in screenings
             if screening.cinema in all_cinemas
             and is_workday_screening(screening.starts_at, screening.ends_at)
+            and not is_family_film(screening)
         ],
     )
 

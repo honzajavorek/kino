@@ -30,6 +30,7 @@ class Screening(BaseModel):
     starts_at: datetime
     ends_at: datetime
     rating: int | None
+    genres: list[str]
 
     def to_ical(self, flags: dict[str, str]) -> Event:
         name = (
@@ -88,3 +89,9 @@ def is_workday_screening(starts_at: datetime, ends_at: datetime) -> bool:
     if day in {holiday.date for holiday in czech_holidays(day.year)}:
         return False
     return ends_at.date() == day and ends_at.time() <= WORKDAY_ENDS_AT
+
+
+def is_family_film(screening: Screening | AeroScreening) -> bool:
+    """Tells whether a screening is a family film (mostly fairy tales) by its
+    CSFD genres. Aero screenings without CSFD data have no genres."""
+    return isinstance(screening, Screening) and "Rodinný" in screening.genres

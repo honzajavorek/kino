@@ -70,6 +70,7 @@ class FilmMetadata(TypedDict):
     rating: int | None
     year: int
     country: str
+    genres: list[str]
 
 
 class ScreeningItem(TimeTableScreening):
@@ -78,6 +79,7 @@ class ScreeningItem(TimeTableScreening):
     rating: int | None
     year: int
     country: str
+    genres: list[str]
 
 
 TimeTable = RootModel[TimeTableDict]
@@ -213,7 +215,9 @@ def split_cached(timetable: TimeTableDict) -> tuple[list[ScreeningItem], list[Re
     items: list[ScreeningItem] = []
     requests: list[Request] = []
     for film_url, screenings in timetable.items():
-        if film := film_cache.get(film_url):
+        film = film_cache.get(film_url)
+        # films cached before genres were scraped need to be fetched again
+        if film and "genres" in film:
             for screening in screenings:
                 items.append(build_screening_item(film_url, screening, film))
         else:
@@ -272,6 +276,7 @@ def build_screening_item(
         "rating": film["rating"],
         "year": film["year"],
         "country": film["country"],
+        "genres": film["genres"],
         **screening,
     }
 
@@ -319,6 +324,7 @@ async def film_handler(context: BeautifulSoupCrawlingContext) -> None:
         "rating": rating_ptc,
         "year": parse_year(origin.text),
         "country": parse_country(origin.text),
+        "genres": parse_genres(soup),
     }
     film_cache.set(
         context.request.url,
@@ -349,6 +355,15 @@ def parse_year(text: str) -> int:
     if match := re.search(YEAR_RE, text):
         return int(match.group())
     raise ValueError(f"No year: {text!r}")
+
+
+def parse_genres(soup: Tag) -> list[str]:
+    """Genres are separated by bullets, and some have more words, e.g. Road movie."""
+    if not (genres := soup.select_one(".film-info-content .genres")):
+        return []
+    for bullet in genres.select(".bullet"):
+        bullet.replace_with("|")
+    return [genre.strip() for genre in genres.text.split("|") if genre.strip()]
 
 
 def parse_country(text: str) -> str:
