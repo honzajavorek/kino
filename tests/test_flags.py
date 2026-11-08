@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from kino.flags import build_codes_mapping, parse_flags
 
 
@@ -36,3 +38,17 @@ def test_parse_flags_normalizes_whitespace():
     flags_mapping = parse_flags(html, codes_mapping)
 
     assert flags_mapping == {"USA": "🇺🇸"}
+
+
+@pytest.mark.parametrize(
+    "label, code",
+    [
+        ("Francouzský protektorát v Maroku", "MA"),
+    ],
+)
+def test_build_codes_mapping_covers_historical_countries(label: str, code: str):
+    """CSFD lists historical states which pycountry doesn't know, so they need
+    to be mapped to their present-day countries."""
+    codes_mapping = build_codes_mapping()
+
+    assert codes_mapping[label] == code
