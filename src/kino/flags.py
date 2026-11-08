@@ -22,6 +22,7 @@ CODES_MAPPING_CUSTOM = {
     "Dánsko-norské království": "DK",
     "Demokratická republika Kongo": "CD",
     "Fed. rep. Jugoslávie": "RS",
+    "Francouzský protektorát v Maroku": "MA",
     "Federativní státy Mikronésie": "FM",
     "Jugoslávie": "RS",
     "Kapverdy": "CV",
