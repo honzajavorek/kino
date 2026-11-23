@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 from pathlib import Path
 
 import click
@@ -6,7 +7,8 @@ from ics import Calendar, Event
 
 from kino.flags import fetch_flags
 from kino.models import Cinema, is_family_film, is_workday_screening
-from kino.scraper import scrape
+from kino.otrlec import fetch_festivals
+from kino.scraper import PRAGUE_TZ, scrape
 
 
 @click.command()
@@ -44,16 +46,17 @@ def main(cinemas: list[tuple[Cinema, Path]], workday_file: Path):
 
     flags = asyncio.run(fetch_flags())
     screenings = asyncio.run(scrape())
+    festivals = asyncio.run(fetch_festivals(datetime.now(PRAGUE_TZ).date()))
 
     for output_file, output_cinemas in files.items():
-        write_calendar(
-            output_file,
-            [
-                screening.to_ical(flags)
-                for screening in screenings
-                if screening.cinema in output_cinemas
-            ],
-        )
+        events = [
+            screening.to_ical(flags)
+            for screening in screenings
+            if screening.cinema in output_cinemas
+        ]
+        if Cinema.AERO in output_cinemas:
+            events.extend(festival.to_ical() for festival in festivals)
+        write_calendar(output_file, events)
 
     all_cinemas = {
         cinema for output_cinemas in files.values() for cinema in output_cinemas
