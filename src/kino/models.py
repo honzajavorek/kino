@@ -1,4 +1,4 @@
-from datetime import datetime, time
+from datetime import date, datetime, time
 from enum import StrEnum
 
 from czech_holidays import czech_holidays
@@ -68,6 +68,26 @@ class AeroScreening(BaseModel):
             url=self.screening_url,
             description=self.screening_url,
         )
+
+
+class Festival(BaseModel):
+    """An edition of Festival otrlého diváka (Otrlec) at Kino Aero."""
+
+    url: str
+    starts_on: date
+    ends_on: date
+
+    def to_ical(self) -> Event:
+        event = Event(
+            name="Otrlec",
+            begin=self.starts_on,
+            end=self.ends_on,
+            location=str(Cinema.AERO),
+            url=self.url,
+            description=self.url,
+        )
+        event.make_all_day()
+        return event
 
 
 def rating_to_emoji(rating: int) -> str:
